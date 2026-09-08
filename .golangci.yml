@@ -1,0 +1,108 @@
+# go-tandoor golangci-lint v2 configuration
+# Strict but conservative: standard defaults + targeted additions.
+#
+# Run: golangci-lint run ./...
+# CI:  golangci-lint run --timeout=5m ./...
+
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  # v2 defaults: errcheck, govet, ineffassign, staticcheck, unused
+  default: standard
+
+  enable:
+    # --- HTTP / network correctness ---
+    - bodyclose      # ensure HTTP response bodies are closed
+    - noctx          # detect HTTP requests without context.Context
+    - canonicalheader # use canonical header format in http.Header
+
+    # --- context correctness ---
+    - containedctx   # reject context.Context as struct fields
+    - contextcheck   # detect use of non-inherited contexts
+    - fatcontext     # detect nested contexts in loops/literals
+
+    # --- error handling ---
+    - errorlint      # catch issues with Go 1.13+ error wrapping
+    - errchkjson     # catch unchecked json.Marshal/Unmarshal errors
+    - errname        # enforce ErrX prefix / ErrorX suffix
+    - nilerr         # catch nil returns when err is non-nil
+    - nilnesserr     # catch checks for err != nil that return a different nil error
+    - reassign       # catch reassignment of error variables
+
+    # --- Go language mechanics ---
+    - copyloopvar    # Go 1.22+ loop variable copy detection
+    - durationcheck  # catch duration * duration mistakes
+    - mirror         # catch incorrect bytes/strings mirror patterns
+    - nosprintfhostport # catch Sprintf misuse for host:port URLs
+    - predeclared    # catch shadowing of predeclared identifiers
+    - unconvert      # remove unnecessary type conversions
+    - usestdlibvars  # prefer time.Hour over time.Second * 60
+    - usetesting     # prefer testing.TB helpers over fmt/log in tests
+    - wastedassign   # catch wasted assignments
+
+    # --- code quality & style ---
+    - gocritic       # rich diagnostics for bugs, perf, and style
+    - misspell       # catch typos
+    - revive         # fast, configurable style linter (drop-in for golint)
+    - whitespace     # catch unnecessary blank lines
+
+    # --- test quality ---
+    - testifylint    # catch misuse of github.com/stretchr/testify
+    - thelper        # enforce t.Helper() in test helpers
+
+    # --- Go tooling ---
+    - gocheckcompilerdirectives # validate //go: compiler directives
+
+  exclusions:
+    generated: lax
+    warn-unused: true
+    presets:
+      - common-false-positives
+      - std-error-handling
+
+    rules:
+      # revive: unused-parameter is expected in interface implementations
+      - path: '_test\.go'
+        linters:
+          - revive
+        text: 'unused-parameter'
+
+      # revive: var-naming (accept short names in tests)
+      - path: '_test\.go'
+        linters:
+          - revive
+        text: 'var-naming'
+
+      # revive: exported (test helpers don't need comments)
+      - path: '_test\.go'
+        linters:
+          - revive
+        text: 'exported'
+
+      # revive: TandoorError stutters but is the canonical public type name
+      - linters:
+          - revive
+        text: 'TandoorError'
+
+      # govet: SA4000 (unnecessary nil check) can be intentional for clarity
+      - linters:
+          - govet
+        text: 'SA4000'
+
+      # errcheck: w.Write() in httptest handlers is never checked in practice
+      - path: '_test\.go'
+        linters:
+          - errcheck
+        text: 'w.Write'
+
+formatters:
+  exclusions:
+    generated: lax
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

@@ -1,0 +1,29 @@
+services:
+  db_recipes:
+    image: postgres:16-alpine
+    env_file:
+      - .env.test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  web_recipes:
+    image: ghcr.io/tandoorrecipes/recipes:2.6.13
+    env_file:
+      - .env.test
+    ports:
+      - "8080:80"
+    volumes:
+      - static_data:/opt/recipes/staticfiles
+      - /tmp/tandoor-test-media:/opt/recipes/mediafiles:z
+    depends_on:
+      db_recipes:
+        condition: service_healthy
+
+volumes:
+  db_data:
+  static_data:
