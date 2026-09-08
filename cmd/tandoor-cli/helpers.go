@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/itchyny/gojq"
 	"github.com/urfave/cli/v3"
 
 	"github.com/swedishborgie/go-tandoor"
@@ -178,14 +179,37 @@ func applyJQ(ctx context.Context, filter string, data []byte) ([]byte, error) {
 	if filter == "" {
 		return data, nil
 	}
-	// Use jq if available
-	cmd := exec.CommandContext(ctx, "jq", "-c", filter)
-	cmd.Stdin = bytes.NewReader(data)
-	out, err := cmd.Output()
+	var input any
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
+	if err := dec.Decode(&input); err != nil {
+		return nil, fmt.Errorf("jq filter failed: invalid JSON input: %w", err)
+	}
+	query, err := gojq.Parse(filter)
 	if err != nil {
 		return nil, fmt.Errorf("jq filter failed: %w", err)
 	}
-	return out, nil
+	var buf bytes.Buffer
+	iter := query.RunWithContext(ctx, input)
+	for {
+		v, ok := iter.Next()
+		if !ok {
+			break
+		}
+		if err, ok := v.(error); ok {
+			if hErr, ok := err.(*gojq.HaltError); ok && hErr.Value() == nil {
+				break
+			}
+			return nil, fmt.Errorf("jq filter failed: %w", err)
+		}
+		out, err := json.Marshal(v)
+		if err != nil {
+			return nil, fmt.Errorf("jq filter failed: %w", err)
+		}
+		buf.Write(out)
+		buf.WriteByte('\n')
+	}
+	return buf.Bytes(), nil
 }
 
 func outputWithJQ(ctx context.Context, v any, filter string, outputFile string) error {

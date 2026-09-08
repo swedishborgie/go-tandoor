@@ -57,7 +57,8 @@ tandoor-cli shopping add-recipe 42 --list-id 1
 ```
 
 Output is pretty-printed JSON. List commands support `--all` to collect every page into one
-array, and many support `--jq '<filter>'` (requires `jq` on PATH) and `--output-file`.
+array, and many support `--jq '<filter>'` (built-in [gojq](https://github.com/itchyny/gojq), no
+external `jq` binary needed) and `--output-file`.
 
 Write commands support `--dry-run` to preview the exact payload without sending it.
 
