@@ -18,18 +18,25 @@ import (
 	"github.com/mark3labs/mcp-go/client"
 	mcpgo "github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/require"
+
+	"github.com/swedishborgie/go-tandoor/internal/testcover"
 )
 
 var (
 	baseURL = "http://localhost:8081"
 	token   string
 	mcpBin  string
+
+	// finishCoverage converts subprocess coverage data (see testcover);
+	// no-op unless E2E_COVERAGE_OUT is set.
+	finishCoverage = func() {}
 )
 
 func TestMain(m *testing.M) {
 	if os.Getenv("INTEGRATION_TESTS") != "1" {
 		os.Exit(m.Run())
 	}
+	finishCoverage = testcover.Setup("mcp-e2e", repoRoot())
 	if err := WriteEnvFile(); err != nil {
 		panic(fmt.Errorf("WriteEnvFile: %w", err))
 	}
@@ -55,6 +62,7 @@ func TestMain(m *testing.M) {
 		panic(fmt.Errorf("build MCP: %w", err))
 	}
 	code := m.Run()
+	finishCoverage()
 	_ = Stop()
 	os.Exit(code)
 }
@@ -86,7 +94,9 @@ func waitReady() error {
 // buildMCP compiles the tandoor binary (the MCP entry point) once per suite.
 func buildMCP() (string, error) {
 	tmp := filepath.Join(os.TempDir(), "tandoor-mcp-e2e")
-	cmd := exec.Command("go", "build", "-o", tmp, "./cmd/tandoor")
+	args := append([]string{"build", "-o", tmp}, testcover.CoverBuildArgs()...)
+	args = append(args, "./cmd/tandoor")
+	cmd := exec.Command("go", args...)
 	cmd.Dir = repoRoot()
 	out, err := cmd.CombinedOutput()
 	if err != nil {

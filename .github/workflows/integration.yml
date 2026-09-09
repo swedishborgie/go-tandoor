@@ -20,14 +20,19 @@ jobs:
       # Suites share port 8080 and must run sequentially.
       - name: Run client integration tests
         run: INTEGRATION_TESTS=1 go test -tags=integration -race -coverpkg=./... -coverprofile=coverage-integration.txt ./internal/tests
+      # E2E_COVERAGE_OUT builds the e2e binaries with -cover and collects
+      # subprocess coverage (Go 1.20+ automatic subprocess instrumentation).
       - name: Run CLI e2e tests
-        run: INTEGRATION_TESTS=1 go test -tags=integration -race ./internal/cli/e2e
+        run: INTEGRATION_TESTS=1 E2E_COVERAGE_OUT=coverage-cli-e2e.txt go test -tags=integration -race ./internal/cli/e2e
       - name: Run MCP e2e tests
-        run: INTEGRATION_TESTS=1 go test -tags=integration -race ./internal/mcp/e2e
+        run: INTEGRATION_TESTS=1 E2E_COVERAGE_OUT=coverage-mcp-e2e.txt go test -tags=integration -race ./internal/mcp/e2e
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: swedishborgie/go-tandoor
-          files: coverage-integration.txt
+          files: |
+            coverage-integration.txt
+            coverage-cli-e2e.txt
+            coverage-mcp-e2e.txt
           flags: integration

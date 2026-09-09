@@ -7,3 +7,8 @@
 PLAN.md
 skill.md
 /dist
+
+# coverage profiles (CI-generated)
+coverage-integration.txt
+coverage-cli-e2e.txt
+coverage-mcp-e2e.txt

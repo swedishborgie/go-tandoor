@@ -15,6 +15,8 @@ import (
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/swedishborgie/go-tandoor/internal/testcover"
 )
 
 var (
@@ -23,6 +25,10 @@ var (
 	cliBin     string
 	fdcSrv     *http.Server
 	fdcBaseURL string
+
+	// finishCoverage converts subprocess coverage data (see testcover);
+	// no-op unless E2E_COVERAGE_OUT is set.
+	finishCoverage = func() {}
 )
 
 func init() {
@@ -34,6 +40,7 @@ func TestMain(m *testing.M) {
 	if os.Getenv("INTEGRATION_TESTS") != "1" {
 		os.Exit(m.Run())
 	}
+	finishCoverage = testcover.Setup("cli-e2e", repoRoot())
 	fmt.Println("WriteEnvFile")
 	if err := WriteEnvFile(); err != nil {
 		panic(fmt.Errorf("WriteEnvFile: %w", err))
@@ -68,6 +75,7 @@ func TestMain(m *testing.M) {
 		panic(fmt.Errorf("build CLI: %w", err))
 	}
 	code := m.Run()
+	finishCoverage()
 	if fdcSrv != nil {
 		fdcSrv.Shutdown(context.Background())
 	}
@@ -101,7 +109,9 @@ func waitReady() error {
 
 func buildCLI() (string, error) {
 	tmp := filepath.Join(os.TempDir(), "tandoor-e2e")
-	cmd := exec.Command("go", "build", "-o", tmp, "./cmd/tandoor")
+	args := append([]string{"build", "-o", tmp}, testcover.CoverBuildArgs()...)
+	args = append(args, "./cmd/tandoor")
+	cmd := exec.Command("go", args...)
 	cmd.Dir = repoRoot()
 	out, err := cmd.CombinedOutput()
 	if err != nil {
