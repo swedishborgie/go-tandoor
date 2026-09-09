@@ -603,8 +603,8 @@ go build -ldflags "-X main.version=$(git describe --tags --dirty --always --long
 ```
 
 `go test ./...` runs unit tests only. The integration and CLI end-to-end suites spin up a
-disposable Tandoor instance and require `podman-compose` on PATH; see
-`internal/tests/README.md` and `internal/cli/e2e/README.md`.
+disposable Tandoor instance and require `podman-compose` or the `docker compose` v2 plugin on PATH; see
+`internal/tests/README.md`, `internal/cli/e2e/README.md`, and `internal/mcp/e2e/README.md`. They run on GitHub Actions (`integration.yml`) with the `docker` fallback.
 
 Layout:
 

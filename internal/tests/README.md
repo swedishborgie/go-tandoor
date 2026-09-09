@@ -15,7 +15,7 @@ INTEGRATION_TESTS=1 go test -tags=integration ./internal/tests -run TestIntegrat
 ```
 
 Environment:
-* podman-compose must be on PATH
+* `podman-compose` or the `docker compose` v2 plugin must be on PATH (podman-compose is preferred)
 * port 8080 must be free
 * Docker images will be pulled: ghcr.io/tandoorrecipes/recipes:2.6.13, postgres:16-alpine
 

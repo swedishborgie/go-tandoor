@@ -18,3 +18,4 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: swedishborgie/go-tandoor
+          flags: unit

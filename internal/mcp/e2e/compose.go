@@ -2,12 +2,13 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+
+	"github.com/swedishborgie/go-tandoor/internal/testcompose"
 )
 
 var (
@@ -21,7 +22,7 @@ func init() {
 }
 
 func composeCmd(args ...string) *exec.Cmd {
-	cmd := exec.CommandContext(context.Background(), "podman-compose", args...)
+	cmd := testcompose.Cmd(args...)
 	cmd.Dir = composeDir
 	cmd.Env = os.Environ()
 	return cmd
@@ -34,7 +35,7 @@ func Start() error {
 	out, err := runCmd(cmd)
 	fmt.Printf("START out: %s, err: %v\n", out, err)
 	if err != nil {
-		return fmt.Errorf("podman-compose up failed: %w\n%s", err, out)
+		return fmt.Errorf("compose up failed: %w\n%s", err, out)
 	}
 	return nil
 }
@@ -44,7 +45,7 @@ func Stop() error {
 	cmd := composeCmd("-f", "docker-compose.test.yml", "-p", composeProject, "down", "-v")
 	out, err := runCmd(cmd)
 	if err != nil {
-		return fmt.Errorf("podman-compose down failed: %w\n%s", err, out)
+		return fmt.Errorf("compose down failed: %w\n%s", err, out)
 	}
 	return nil
 }

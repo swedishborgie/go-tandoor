@@ -61,7 +61,8 @@ func TestIntegrationShoppingEntryCRUD(t *testing.T) {
 	got, err := client.ShoppingEntries().Get(ctx, createdEntry.ID)
 	require.NoError(t, err)
 	require.Equal(t, createdEntry.ID, got.ID)
-	require.InDelta(t, 2.5, got.Amount, 0.001)
+	require.NotNil(t, got.Amount)
+	require.InDelta(t, 2.5, *got.Amount, 0.001) // InDelta can't take *float64
 
 	// Update
 	got.Note = "Updated note"

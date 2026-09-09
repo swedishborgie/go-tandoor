@@ -1,6 +1,6 @@
 # CLI End-to-End Tests
 
-These tests build the CLI binary and exercise entrypoints against a real Tandoor instance started via podman-compose.
+These tests build the CLI binary and exercise entrypoints against a real Tandoor instance started via podman-compose (or the docker compose v2 plugin).
 
 ## Run
 

@@ -59,6 +59,24 @@ func TestIntegrationShoppingRecipeCRUD(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, createdSR.ID, got.ID)
 
+	// Create an entry linked to the SLR before updating servings. Tandoor
+	// 2.6.x looks the SLR up through its user-owned entries when scaling
+	// servings and returns 500 if the SLR has no entries yet (upstream bug:
+	// shopping_helper.get_shopping_list_recipe filters on entries__created_by).
+	var entry struct {
+		ID int `json:"id"`
+	}
+	err = client.DoJSON(ctx, "POST", "api/shopping-list-entry/", map[string]any{
+		"list_recipe": createdSR.ID,
+		"food":        map[string]any{"name": "Test Food"},
+		"amount":      1.0,
+	}, &entry)
+	require.NoError(t, err)
+	require.NotZero(t, entry.ID)
+	defer func() {
+		_ = client.DoJSON(ctx, "DELETE", fmt.Sprintf("api/shopping-list-entry/%d/", entry.ID), nil, nil)
+	}()
+
 	// Update servings
 	updatePayload := map[string]any{"servings": 3}
 	var updated shopping.ListRecipe
