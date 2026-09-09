@@ -1,0 +1,33 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Pre-pull test images
+        run: |
+          docker pull ghcr.io/tandoorrecipes/recipes:2.6.13
+          docker pull postgres:16-alpine
+      # Suites share port 8080 and must run sequentially.
+      - name: Run client integration tests
+        run: INTEGRATION_TESTS=1 go test -tags=integration -race -coverpkg=./... -coverprofile=coverage-integration.txt ./internal/tests
+      - name: Run CLI e2e tests
+        run: INTEGRATION_TESTS=1 go test -tags=integration -race ./internal/cli/e2e
+      - name: Run MCP e2e tests
+        run: INTEGRATION_TESTS=1 go test -tags=integration -race ./internal/mcp/e2e
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: swedishborgie/go-tandoor
+          files: coverage-integration.txt
+          flags: integration

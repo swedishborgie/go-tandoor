@@ -2,7 +2,7 @@
 
 These tests build the `tandoor` binary and drive its `mcp` subcommand as
 an MCP server over stdio against a real Tandoor instance (2.6.13) started
-via podman-compose.
+via podman-compose (or the docker compose v2 plugin).
 
 ## Run
 
