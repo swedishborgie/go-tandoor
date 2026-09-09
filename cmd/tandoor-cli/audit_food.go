@@ -4,15 +4,12 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/swedishborgie/go-tandoor"
-	"github.com/swedishborgie/go-tandoor/detector"
-	"github.com/swedishborgie/go-tandoor/food"
-	"github.com/swedishborgie/go-tandoor/ingredient"
+	"github.com/swedishborgie/go-tandoor/auditfood"
+	"github.com/swedishborgie/go-tandoor/fdc"
 	"github.com/swedishborgie/go-tandoor/normalize"
-	"github.com/swedishborgie/go-tandoor/pagination"
 	"github.com/urfave/cli/v3"
 )
 
@@ -49,99 +46,15 @@ func auditFoodInspect() *cli.Command {
 			}
 
 			c := ctx.Value(ctxKeyClient).(*tandoor.Client)
-			f, err := c.Foods().Get(ctx, id)
+			var fdcClient *fdc.Client
+			if fdcClient, err = newFdcClient(cmd); err != nil {
+				fdcClient = nil // FDC lookup is optional
+			}
+
+			result, err := auditfood.Inspect(ctx, c, fdcClient, id, cmd.Int("page-size"))
 			if err != nil {
-				return fmt.Errorf("get food: %w", err)
+				return err
 			}
-
-			// Fetch ingredients using this food (filtered by food ID).
-			pageSize := cmd.Int("page-size")
-			opts := &ingredient.ListOptions{ListOptions: pagination.ListOptions{
-				PageSize: pageSize,
-				Extra:    map[string]string{"food": fmt.Sprintf("%d", id)}},
-			}
-			ingredientPage, err := c.Ingredients().List(ctx, opts)
-			if err != nil {
-				return fmt.Errorf("list ingredients: %w", err)
-			}
-
-			foodIngredients := make([]*ingredient.Ingredient, len(ingredientPage.Results))
-			for i := range ingredientPage.Results {
-				foodIngredients[i] = &ingredientPage.Results[i]
-			}
-
-			// Run detectors.
-			reg := newAuditRegistry(ctx, c, cmd)
-			detFood := detector.Food{
-				Name:            f.Name,
-				FDCID:           f.FDCID,
-				PropertyTypeIDs: propertyTypeIDs(f),
-			}
-			issues := reg.CheckAll(detFood)
-
-			issueList := make([]string, len(issues))
-			for i, iss := range issues {
-				issueList[i] = fmt.Sprintf("[%s] %s (%s)", iss.Category, iss.Message, iss.Severity)
-			}
-
-			// Generate suggested name.
-			norm := normalize.Normalize(f.Name)
-
-			// FDC lookup: if fdc_id is null, search FDC with the canonical name.
-			type FDCMatch struct {
-				FDCID       int     `json:"fdc_id"`
-				Description string  `json:"description"`
-				DataType    string  `json:"data_type"`
-				Score       float64 `json:"score,omitempty"`
-			}
-			var fdcMatches []FDCMatch
-			if f.FDCID == nil {
-				fdcClient, err := newFdcClient(cmd)
-				if err == nil {
-					limit := 5
-					resp, err := fdcClient.SearchFoods(ctx, norm.Canonical, nil, &limit, nil, "", "", "")
-					if err == nil {
-						for _, food := range resp.Foods {
-							score := 0.0
-							if food.Score != nil {
-								score = *food.Score
-							}
-							fdcMatches = append(fdcMatches, FDCMatch{
-								FDCID:       food.FDCID,
-								Description: food.Description,
-								DataType:    food.DataType,
-								Score:       score,
-							})
-						}
-					}
-				}
-			}
-			if fdcMatches == nil {
-				fdcMatches = []FDCMatch{}
-			}
-
-			type InspectResult struct {
-				Food          *food.Food               `json:"food"`
-				Ingredients   []*ingredient.Ingredient `json:"ingredients"`
-				IssueCount    int                      `json:"issue_count"`
-				Issues        []string                 `json:"issues"`
-				SuggestedName string                   `json:"suggested_name"`
-				PrepNote      string                   `json:"prep_note,omitempty"`
-				Alternatives  []string                 `json:"alternatives,omitempty"`
-				FDCMatches    []FDCMatch               `json:"fdc_matches"`
-			}
-
-			result := InspectResult{
-				Food:          f,
-				Ingredients:   foodIngredients,
-				IssueCount:    len(issues),
-				Issues:        issueList,
-				SuggestedName: norm.Canonical,
-				PrepNote:      norm.PrepNote,
-				Alternatives:  norm.Alternatives,
-				FDCMatches:    fdcMatches,
-			}
-
 			return printJSON(result)
 		},
 	}
@@ -160,50 +73,26 @@ func auditFoodSuggest() *cli.Command {
 			}
 
 			c := ctx.Value(ctxKeyClient).(*tandoor.Client)
-			f, err := c.Foods().Get(ctx, id)
+			inspect, err := auditfood.Inspect(ctx, c, nil, id, cmd.Int("page-size"))
 			if err != nil {
-				return fmt.Errorf("get food: %w", err)
+				return err
 			}
-
-			// Run detectors to find issues.
-			reg := newAuditRegistry(ctx, c, cmd)
-			detFood := detector.Food{
-				Name:            f.Name,
-				FDCID:           f.FDCID,
-				PropertyTypeIDs: propertyTypeIDs(f),
-			}
-			issues := reg.CheckAll(detFood)
-
-			issueCategories := make([]string, len(issues))
-			for i, iss := range issues {
-				issueCategories[i] = iss.Category
-			}
-
-			// Generate normalized name.
+			f := inspect.Food
 			norm := normalize.Normalize(f.Name)
 
-			// Fetch affected ingredients.
-			pageSize := cmd.Int("page-size")
-			ingOpts := &ingredient.ListOptions{ListOptions: pagination.ListOptions{
-				PageSize: pageSize,
-				Extra:    map[string]string{"food": fmt.Sprintf("%d", id)}},
-			}
-			ingPage, err := c.Ingredients().List(ctx, ingOpts)
 			type AffectedIngredient struct {
 				ID         int    `json:"id"`
 				RecipeID   int    `json:"recipe_id"`
 				RecipeName string `json:"recipe_name"`
 			}
 			var affectedIngredients []AffectedIngredient
-			if err == nil && ingPage != nil {
-				for _, ing := range ingPage.Results {
-					for _, ref := range ing.UsedInRecipes {
-						affectedIngredients = append(affectedIngredients, AffectedIngredient{
-							ID:         ing.ID,
-							RecipeID:   ref.ID,
-							RecipeName: ref.Name,
-						})
-					}
+			for _, ing := range inspect.Ingredients {
+				for _, ref := range ing.UsedInRecipes {
+					affectedIngredients = append(affectedIngredients, AffectedIngredient{
+						ID:         ing.ID,
+						RecipeID:   ref.ID,
+						RecipeName: ref.Name,
+					})
 				}
 			}
 			if affectedIngredients == nil {
@@ -238,7 +127,7 @@ func auditFoodSuggest() *cli.Command {
 						To:    norm.Canonical,
 					},
 				},
-				IssuesResolved:      issueCategories,
+				IssuesResolved:      inspect.Issues,
 				PrepNote:            norm.PrepNote,
 				Alternatives:        norm.Alternatives,
 				AffectedIngredients: affectedIngredients,
@@ -263,11 +152,11 @@ func auditFoodFix() *cli.Command {
 	return &cli.Command{
 		Name:        "fix",
 		Usage:       "Apply the correction to a food (write)",
-		Description: "Applies normalized name change to food. Requires --yes flag. Use --dry-run to preview PATCH payload.",
+		Description: "Applies normalized name change to food (merging into an identically named food on collision). Requires --yes flag. Use --dry-run to preview.",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:  "dry-run",
-				Usage: "Print the PATCH payload without sending",
+				Usage: "Print the plan without sending",
 			},
 			&cli.BoolFlag{
 				Name:  "yes",
@@ -281,40 +170,28 @@ func auditFoodFix() *cli.Command {
 			}
 
 			c := ctx.Value(ctxKeyClient).(*tandoor.Client)
-			f, err := c.Foods().Get(ctx, id)
-			if err != nil {
-				return fmt.Errorf("get food: %w", err)
-			}
-
-			norm := normalize.Normalize(f.Name)
-
-			// Build a minimal PATCH payload — avoid sending zero-value fields
-			// (shopping="", properties=null) which cause Tandoor 500 errors.
-			payload := map[string]any{
-				"name": norm.Canonical,
-			}
-			data, _ := json.MarshalIndent(payload, "", "  ")
-
 			dryRun := cmd.Bool("dry-run")
 			yes := cmd.Bool("yes")
 
-			if dryRun {
-				fmt.Fprintln(cmd.ErrWriter, "[dry-run] PATCH /api/food/", id, "/")
-				fmt.Fprintln(cmd.ErrWriter, string(data))
-				return nil
-			}
-
-			if !yes {
+			if !dryRun && !yes {
 				return fmt.Errorf("--yes flag is required to apply the fix (use --dry-run to preview)")
 			}
 
-			var updated map[string]any
-			if err := c.DoJSON(ctx, "PATCH", "api/food/"+fmt.Sprintf("%d/", id), payload, &updated); err != nil {
-				return fmt.Errorf("patch food %d: %w", id, err)
+			result, err := auditfood.Fix(ctx, c, &auditfood.FixOptions{
+				FoodID:           id,
+				MergeOnCollision: true,
+			}, dryRun)
+			if err != nil {
+				return err
 			}
-
-			fmt.Fprintf(cmd.ErrWriter, "[fix] food %d: %q -> %q\n", id, f.Name, updated["name"])
-			return printJSON(updated)
+			if dryRun {
+				fmt.Fprintln(cmd.ErrWriter, "[dry-run] plan for food", id)
+			} else if result.Merged {
+				fmt.Fprintf(cmd.ErrWriter, "[fix] food %d merged into %d\n", id, result.Collision.ID)
+			} else {
+				fmt.Fprintf(cmd.ErrWriter, "[fix] food %d: %q -> %q\n", id, result.OriginalName, result.NewName)
+			}
+			return printJSON(result)
 		},
 	}
 }

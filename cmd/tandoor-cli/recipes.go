@@ -114,12 +114,12 @@ func recipesListCommand() *cli.Command {
 			}
 
 			if cmd.Bool("flat") {
-				page, err := c.Recipes().Flat(ctx, opts)
+				flat, err := c.Recipes().Flat(ctx, opts)
 				if err != nil {
 					printError(err)
 					return err
 				}
-				return outputWithJQ(ctx, page, cmd.String("jq"), cmd.String("output-file"))
+				return outputWithJQ(ctx, flat, cmd.String("jq"), cmd.String("output-file"))
 			}
 
 			page, err := c.Recipes().List(ctx, opts)

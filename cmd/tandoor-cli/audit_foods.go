@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/swedishborgie/go-tandoor"
+	"github.com/swedishborgie/go-tandoor/auditfood"
 	"github.com/swedishborgie/go-tandoor/detector"
 	"github.com/swedishborgie/go-tandoor/food"
 	"github.com/swedishborgie/go-tandoor/ingredient"
@@ -30,7 +31,9 @@ func auditFoodsCommand() *cli.Command {
 			c := ctx.Value(ctxKeyClient).(*tandoor.Client)
 
 			category := cmd.String("category")
-			reg := newAuditRegistry(ctx, c, cmd)
+			reg := auditfood.NewRegistry(ctx, c, func(format string, args ...any) {
+				fmt.Fprintf(cmd.ErrWriter, "[warn] "+format+"\n", args...)
+			})
 			pageSize := cmd.Int("page-size")
 
 			type AuditResult struct {
@@ -81,7 +84,7 @@ func auditFoodsCommand() *cli.Command {
 					detFood := detector.Food{
 						Name:            f.Name,
 						FDCID:           f.FDCID,
-						PropertyTypeIDs: propertyTypeIDs(&f),
+						PropertyTypeIDs: auditfood.PropertyTypeIDs(f.Properties),
 					}
 					var issues []detector.Issue
 					if category != "" {

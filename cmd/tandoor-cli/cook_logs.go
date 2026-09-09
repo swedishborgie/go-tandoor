@@ -52,10 +52,12 @@ func cookLogsCreateCommand() *cli.Command {
 				return fmt.Errorf("--recipe-id is required")
 			}
 			recipeID := cmd.Int("recipe-id")
+			servings := cmd.Int("servings")
+			comment := cmd.String("comment")
 			payload := &misc.CookLog{
 				Recipe:   &recipeID,
-				Servings: cmd.Int("servings"),
-				Comment:  cmd.String("comment"),
+				Servings: &servings,
+				Comment:  &comment,
 			}
 			if cmd.IsSet("rating") {
 				rating := cmd.Int("rating")

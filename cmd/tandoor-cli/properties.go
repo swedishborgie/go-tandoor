@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/swedishborgie/go-tandoor"
+	"github.com/swedishborgie/go-tandoor/auditfood"
 	"github.com/swedishborgie/go-tandoor/pagination"
 	"github.com/swedishborgie/go-tandoor/property"
 	"github.com/urfave/cli/v3"
@@ -252,24 +253,6 @@ func propertiesCreateCommand() *cli.Command {
 	}
 }
 
-func resolvePropertyTargetFoodID(ctx context.Context, c *tandoor.Client, cmd *cli.Command) (int, error) {
-	if cmd.IsSet("food-id") {
-		return cmd.Int("food-id"), nil
-	}
-	if cmd.IsSet("ingredient-id") {
-		ingredientID := cmd.Int("ingredient-id")
-		ing, err := c.Ingredients().Get(ctx, ingredientID)
-		if err != nil {
-			return 0, fmt.Errorf("get ingredient %d: %w", ingredientID, err)
-		}
-		if ing.Food == nil {
-			return 0, fmt.Errorf("ingredient %d has no food attached", ingredientID)
-		}
-		return ing.Food.ID, nil
-	}
-	return 0, fmt.Errorf("set --food-id or --ingredient-id")
-}
-
 func propertiesAttachCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "attach",
@@ -294,7 +277,7 @@ func propertiesAttachCommand() *cli.Command {
 			},
 			&cli.BoolFlag{
 				Name:  "dry-run",
-				Usage: "Preview payload without sending",
+				Usage: "Preview the planned action without sending",
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
@@ -306,116 +289,17 @@ func propertiesAttachCommand() *cli.Command {
 				return fmt.Errorf("--property-amount is required")
 			}
 
-			foodID, err := resolvePropertyTargetFoodID(ctx, c, cmd)
+			result, err := auditfood.Attach(ctx, c, &auditfood.AttachOptions{
+				FoodID:         cmd.Int("food-id"),
+				IngredientID:   cmd.Int("ingredient-id"),
+				PropertyTypeID: cmd.Int("property-type-id"),
+				Amount:         cmd.Float("property-amount"),
+			}, cmd.Bool("dry-run"))
 			if err != nil {
 				printError(err)
 				return err
 			}
-
-			propertyTypeID := cmd.Int("property-type-id")
-			propertyAmount := cmd.Float("property-amount")
-
-			if cmd.Bool("dry-run") {
-				preview := map[string]any{
-					"food_id":          foodID,
-					"property_type_id": propertyTypeID,
-					"property_amount":  propertyAmount,
-					"action":           "attach-or-update",
-				}
-				fmt.Fprintf(cmd.ErrWriter, "[dry-run] properties attach preview:\n")
-				return printJSON(preview)
-			}
-
-			// Fetch the authoritative property type. Tandoor's writable
-			// nested serializer matches nested objects by id and overwrites
-			// every field sent, so the payload must carry the real name,
-			// unit, and fdc_id — never a fabricated or borrowed placeholder.
-			propType, err := property.NewTypeService(c).Get(ctx, propertyTypeID)
-			if err != nil {
-				return fmt.Errorf("get property type %d: %w (create it first with property-types create)", propertyTypeID, err)
-			}
-
-			// Fetch the food to get its authoritative properties array
-			// (the food endpoint returns the correct properties, unlike
-			// the property list which can include stale/merged entries).
-			var food map[string]any
-			if err := c.DoJSON(ctx, "GET", "api/food/"+fmt.Sprintf("%d/", foodID), nil, &food); err != nil {
-				return fmt.Errorf("get food %d: %w", foodID, err)
-			}
-
-			// Find existing property with matching type from the food's properties
-			existingProps, _ := food["properties"].([]any)
-			var targetPropID *int
-			for _, p := range existingProps {
-				propMap, ok := p.(map[string]any)
-				if !ok {
-					continue
-				}
-				pt, ok := propMap["property_type"].(map[string]any)
-				if !ok {
-					continue
-				}
-				ptID, ok := pt["id"].(float64)
-				if !ok {
-					continue
-				}
-				if int(ptID) == propertyTypeID {
-					propID, ok := propMap["id"].(float64)
-					if ok {
-						id := int(propID)
-						targetPropID = &id
-					}
-					break
-				}
-			}
-
-			var result any
-			if targetPropID != nil {
-				// Tandoor requires property_type on PATCH (validates name != blank)
-				payload := map[string]any{
-					"property_amount": propertyAmount,
-					"property_type":   propType,
-				}
-				result = make(map[string]any)
-				if err := c.DoJSON(ctx, "PATCH", "api/property/"+fmt.Sprintf("%d/", *targetPropID), payload, &result); err != nil {
-					return fmt.Errorf("patch property %d: %w", *targetPropID, err)
-				}
-				// Also set properties_food_amount/unit on the food so recipe
-				// calculations can use the per-100g properties.
-				foodPayload := map[string]any{
-					"properties_food_amount": 100,
-					"properties_food_unit":   17, // g
-				}
-				var foodResult map[string]any
-				if err := c.DoJSON(ctx, "PATCH", "api/food/"+fmt.Sprintf("%d/", foodID), foodPayload, &foodResult); err != nil {
-					// Non-fatal: property was still updated
-					fmt.Fprintf(cmd.ErrWriter, "[warn] could not set properties_food_amount on food %d: %v\n", foodID, err)
-				}
-			} else {
-				// POST /api/property/ ignores the food field, so we PATCH the
-				// food directly with its properties array including the new one.
-				newProp := map[string]any{
-					"property_type":   propType,
-					"property_amount": propertyAmount,
-				}
-				existingProps = append(existingProps, newProp)
-				foodPayload := map[string]any{
-					"id":                     foodID,
-					"properties":             existingProps,
-					"properties_food_amount": 100,
-					"properties_food_unit":   17, // g
-				}
-				result = make(map[string]any)
-				if err := c.DoJSON(ctx, "PATCH", "api/food/"+fmt.Sprintf("%d/", foodID), foodPayload, &result); err != nil {
-					return fmt.Errorf("patch food %d with properties: %w", foodID, err)
-				}
-			}
-
-			action := "updated"
-			if targetPropID == nil {
-				action = "created"
-			}
-			fmt.Fprintf(cmd.ErrWriter, "[attach] property %s type=%d amount=%.2f to food %d\n", action, propertyTypeID, propertyAmount, foodID)
+			fmt.Fprintf(cmd.ErrWriter, "[attach] property %s (type=%d amount=%.2f)\n", result.Action, cmd.Int("property-type-id"), cmd.Float("property-amount"))
 			return printJSON(result)
 		},
 	}

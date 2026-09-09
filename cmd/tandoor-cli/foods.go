@@ -10,10 +10,10 @@ import (
 	"strings"
 
 	"github.com/swedishborgie/go-tandoor"
+	"github.com/swedishborgie/go-tandoor/auditfood"
+	"github.com/swedishborgie/go-tandoor/fdc"
 	"github.com/swedishborgie/go-tandoor/food"
 	"github.com/swedishborgie/go-tandoor/pagination"
-	"github.com/swedishborgie/go-tandoor/property"
-	"github.com/swedishborgie/go-tandoor/unit"
 	"github.com/urfave/cli/v3"
 )
 
@@ -536,10 +536,6 @@ func foodsEnsureCommand() *cli.Command {
 				Name:  "force-create",
 				Usage: "Create food even if ambiguous (skip near-match check)",
 			},
-			&cli.IntFlag{
-				Name:  "merge-into",
-				Usage: "If ambiguous, merge into this food ID",
-			},
 			&cli.StringFlag{
 				Name:  "output-file",
 				Usage: "Write JSON output to file",
@@ -549,178 +545,31 @@ func foodsEnsureCommand() *cli.Command {
 	}
 }
 
-type ensureResult struct {
-	Status        string      `json:"status"`
-	Food          *food.Food  `json:"food,omitempty"`
-	NearMatches   []nearMatch `json:"near_matches,omitempty"`
-	FdcCandidates []any       `json:"fdc_candidates,omitempty"`
-	ActionsTaken  []string    `json:"actions_taken,omitempty"`
-}
-
-type nearMatch struct {
-	ID         int     `json:"id"`
-	Name       string  `json:"name"`
-	Similarity float64 `json:"similarity"`
-}
-
 func foodsEnsureAction(ctx context.Context, cmd *cli.Command) error {
 	c := ctx.Value(ctxKeyClient).(*tandoor.Client)
 	names := cmd.StringSlice("name")
 	dryRun := cmd.Bool("dry-run")
 	forceCreate := cmd.Bool("force-create")
 
-	fdcClient, err := newFdcClient(cmd)
+	var fdcClient *fdc.Client
+	if fc, err := newFdcClient(cmd); err == nil {
+		fdcClient = fc
+	} else {
+		// FDC candidates are optional — ensure still works without a key.
+		fmt.Fprintf(cmd.ErrWriter, "[ensure] no FDC API key, skipping FDC candidates\n")
+	}
+
+	report, err := auditfood.Ensure(ctx, c, &auditfood.EnsureOptions{
+		Names:       names,
+		FDC:         fdcClient,
+		ForceCreate: forceCreate,
+	}, dryRun)
 	if err != nil {
 		return err
 	}
-
-	results := make(map[string]ensureResult, len(names))
-
-	for _, name := range names {
-		res := ensureResult{
-			Status:       "not_found",
-			ActionsTaken: []string{},
-		}
-		// Search for foods with query matching name.
-		opts := &food.ListOptions{
-			ListOptions: pagination.ListOptions{
-				PageSize: 100,
-				Search:   name,
-			},
-		}
-		page, err := c.Foods().List(ctx, opts)
-		if err != nil {
-			return fmt.Errorf("foods list for %q: %w", name, err)
-		}
-
-		var exact *food.Food
-		var candidates []food.Food
-		for _, f := range page.Results {
-			if strings.EqualFold(f.Name, name) {
-				exact = &f
-				break
-			}
-			candidates = append(candidates, f)
-		}
-
-		if exact != nil {
-			res.Status = "found"
-			res.Food = exact
-			results[name] = res
-			continue
-		}
-
-		// Compute near matches via Jaccard similarity.
-		near := []nearMatch{}
-		for _, f := range candidates {
-			sim := jaccardSimilarity(name, f.Name)
-			if sim >= 0.6 {
-				near = append(near, nearMatch{
-					ID:         f.ID,
-					Name:       f.Name,
-					Similarity: sim,
-				})
-			}
-		}
-		for i := 0; i < len(near)-1; i++ {
-			for j := i + 1; j < len(near); j++ {
-				if near[j].Similarity > near[i].Similarity {
-					near[i], near[j] = near[j], near[i]
-				}
-			}
-		}
-
-		if len(near) > 0 {
-			res.Status = "ambiguous"
-			res.NearMatches = near
-		}
-
-		// FDC candidates for agent selection
-		type fdcCandidate struct {
-			FDCID       int     `json:"fdc_id"`
-			Description string  `json:"description"`
-			DataType    string  `json:"data_type"`
-			Score       float64 `json:"score,omitempty"`
-		}
-		limit := 5
-		pageSize := limit
-		if pageSize > 200 {
-			pageSize = 200
-		}
-		nilInt := (*int)(nil)
-		fdcResp, fdcErr := fdcClient.SearchFoods(ctx, name, nil, &pageSize, nilInt, "", "", "")
-		if fdcErr == nil {
-			candidatesFDC := []fdcCandidate{}
-			for _, f := range fdcResp.Foods {
-				if len(candidatesFDC) >= limit {
-					break
-				}
-				c := fdcCandidate{
-					FDCID:       f.FDCID,
-					Description: f.Description,
-					DataType:    f.DataType,
-				}
-				if f.Score != nil {
-					c.Score = *f.Score
-				}
-				candidatesFDC = append(candidatesFDC, c)
-			}
-			anySlice := make([]any, len(candidatesFDC))
-			for i, v := range candidatesFDC {
-				anySlice[i] = v
-			}
-			res.FdcCandidates = anySlice
-		}
-
-		if forceCreate {
-			if !dryRun {
-				newFood := &food.Food{Name: name}
-				created, err := c.Foods().Create(ctx, newFood)
-				if err != nil {
-					return fmt.Errorf("create food %q: %w", name, err)
-				}
-				res.Status = "created"
-				res.Food = created
-				res.ActionsTaken = append(res.ActionsTaken, "food_created")
-			} else {
-				res.Status = "would_create"
-				res.ActionsTaken = append(res.ActionsTaken, "food_create_dry_run")
-			}
-			results[name] = res
-			continue
-		}
-
-		res.NearMatches = near
-		results[name] = res
-	}
-
-	// Idempotency summary
-	summary := struct {
-		Total       int `json:"total"`
-		Found       int `json:"found"`
-		Created     int `json:"created"`
-		WouldCreate int `json:"would_create"`
-		Ambiguous   int `json:"ambiguous"`
-		NotFound    int `json:"not_found"`
-	}{}
-	summary.Total = len(names)
-	for _, r := range results {
-		switch r.Status {
-		case "found":
-			summary.Found++
-		case "created":
-			summary.Created++
-		case "would_create":
-			summary.WouldCreate++
-		case "ambiguous":
-			summary.Ambiguous++
-		default:
-			summary.NotFound++
-		}
-	}
 	output := map[string]any{
-		"summary": summary,
-		"results": results,
+		"summary": report.Summary,
+		"results": report.Results,
 	}
 	if outFile := cmd.String("output-file"); outFile != "" {
 		data, err := json.MarshalIndent(output, "", "  ")
@@ -731,7 +580,8 @@ func foodsEnsureAction(ctx context.Context, cmd *cli.Command) error {
 			return fmt.Errorf("write output file: %w", err)
 		}
 		fmt.Fprintf(cmd.ErrWriter, "[output] wrote results to %s\n", outFile)
-		fmt.Fprintf(cmd.ErrWriter, "[summary] total=%d found=%d created=%d would_create=%d ambiguous=%d not_found=%d\n", summary.Total, summary.Found, summary.Created, summary.WouldCreate, summary.Ambiguous, summary.NotFound)
+		fmt.Fprintf(cmd.ErrWriter, "[summary] total=%d found=%d created=%d would_create=%d ambiguous=%d not_found=%d\n",
+			report.Summary.Total, report.Summary.Found, report.Summary.Created, report.Summary.WouldCreate, report.Summary.Ambiguous, report.Summary.NotFound)
 	}
 	return printJSON(output)
 }
@@ -781,132 +631,29 @@ func foodsAutoConversionsCommand() *cli.Command {
 func foodsAttachFDCPropertiesAction(ctx context.Context, cmd *cli.Command) error {
 	c := ctx.Value(ctxKeyClient).(*tandoor.Client)
 	foodID := cmd.Int("food-id")
-	fdcOverride := cmd.Int("fdc-id")
 	dryRun := cmd.Bool("dry-run")
-
-	foodObj, err := c.Foods().Get(ctx, foodID)
-	if err != nil {
-		return fmt.Errorf("get food %d: %w", foodID, err)
-	}
-
-	fdcIDPtr := foodObj.FDCID
-	if cmd.IsSet("fdc-id") {
-		fdcID := fdcOverride
-		fdcIDPtr = &fdcID
-	}
-	if fdcIDPtr == nil {
-		return fmt.Errorf("food %d has no FDC ID and --fdc-id was not provided", foodID)
-	}
-	fdcID := *fdcIDPtr
 
 	fdcClient, err := newFdcClient(cmd)
 	if err != nil {
 		return err
 	}
-	fdcFood, err := fdcClient.GetFood(ctx, fdcID, "", nil)
+
+	opts := &auditfood.FdcAttachOptions{FoodID: foodID}
+	if cmd.IsSet("fdc-id") {
+		id := cmd.Int("fdc-id")
+		opts.FDCID = &id
+	}
+
+	result, err := auditfood.AttachFDCProperties(ctx, c, fdcClient, opts, dryRun)
 	if err != nil {
-		return fmt.Errorf("fdc get %d: %w", fdcID, err)
+		return err
 	}
-
-	// Load property types with fdc_id set
-	ptSvc := property.NewTypeService(c)
-	ptPage, err := ptSvc.List(ctx, &property.TypeListOptions{ListOptions: pagination.ListOptions{PageSize: 500}})
-	if err != nil {
-		return fmt.Errorf("list property types: %w", err)
-	}
-
-	attached := []map[string]any{}
-	for _, pt := range ptPage.Results {
-		if pt.FDCID == nil {
-			continue
-		}
-		fdcNutrientID := *pt.FDCID
-		// Find matching nutrient in FDC food
-		var amount *float64
-		for _, fn := range fdcFood.FoodNutrients {
-			if fn.Nutrient == nil {
-				continue
-			}
-			// Match by nutrient number (string) or ID
-			matched := false
-			if fn.Nutrient.Number != "" {
-				if fmt.Sprintf("%d", fdcNutrientID) == fn.Nutrient.Number {
-					matched = true
-				}
-			}
-			if fn.Nutrient.ID != 0 && int(fn.Nutrient.ID) == fdcNutrientID {
-				matched = true
-			}
-			if matched && fn.Amount != nil {
-				amount = fn.Amount
-				break
-			}
-		}
-		if amount == nil {
-			continue
-		}
-		entry := map[string]any{
-			"property_type_id":   pt.ID,
-			"property_type_name": pt.Name,
-			"fdc_id":             fdcNutrientID,
-			"amount":             *amount,
-		}
-		if dryRun {
-			attached = append(attached, entry)
-			continue
-		}
-		// Attach property via existing attach logic: PATCH food with properties array
-		// Fetch food to get current properties
-		foodMap := map[string]any{}
-		if err := c.DoJSON(ctx, "GET", "api/food/"+fmt.Sprintf("%d/", foodID), nil, &foodMap); err != nil {
-			return fmt.Errorf("get food %d for patch: %w", foodID, err)
-		}
-		props, _ := foodMap["properties"].([]any)
-		// Check if property already exists
-		exists := false
-		for _, p := range props {
-			pm, ok := p.(map[string]any)
-			if !ok {
-				continue
-			}
-			ptMap, ok := pm["property_type"].(map[string]any)
-			if !ok {
-				continue
-			}
-			if int(ptMap["id"].(float64)) == pt.ID {
-				exists = true
-				// Update amount
-				pm["property_amount"] = *amount
-				break
-			}
-		}
-		if !exists {
-			newProp := map[string]any{
-				"property_type": map[string]any{
-					"id":   pt.ID,
-					"name": pt.Name,
-				},
-				"property_amount": *amount,
-			}
-			props = append(props, newProp)
-		}
-		patch := map[string]any{
-			"properties":             props,
-			"properties_food_amount": 100,
-			"properties_food_unit":   17,
-		}
-		if err := c.DoJSON(ctx, "PATCH", "api/food/"+fmt.Sprintf("%d/", foodID), patch, &map[string]any{}); err != nil {
-			return fmt.Errorf("patch food %d properties: %w", foodID, err)
-		}
-		attached = append(attached, entry)
-	}
-
 	if dryRun {
-		fmt.Fprintf(cmd.ErrWriter, "[dry-run] would attach %d properties to food %d\n", len(attached), foodID)
-		return printJSON(attached)
+		fmt.Fprintf(cmd.ErrWriter, "[dry-run] would attach %d properties to food %d\n", len(result.Attached), foodID)
+	} else {
+		fmt.Fprintf(cmd.ErrWriter, "[attach] attached %d properties to food %d\n", len(result.Attached), foodID)
 	}
-	fmt.Fprintf(cmd.ErrWriter, "[attach] attached %d properties to food %d\n", len(attached), foodID)
-	return printJSON(attached)
+	return printJSON(result)
 }
 
 func foodsAutoConversionsAction(ctx context.Context, cmd *cli.Command) error {
@@ -914,144 +661,14 @@ func foodsAutoConversionsAction(ctx context.Context, cmd *cli.Command) error {
 	foodID := cmd.Int("food-id")
 	dryRun := cmd.Bool("dry-run")
 
-	foodObj, err := c.Foods().Get(ctx, foodID)
+	result, err := auditfood.AutoConversions(ctx, c, foodID, dryRun)
 	if err != nil {
-		return fmt.Errorf("get food %d: %w", foodID, err)
+		return err
 	}
-	// Use properties_food_unit as heuristic base unit if set, otherwise default to gram (17)
-	var unitID int
-	if foodObj.PropertiesFoodUnit != nil {
-		// PropertiesFoodUnit may be int or map
-		switch v := foodObj.PropertiesFoodUnit.(type) {
-		case float64:
-			unitID = int(v)
-		case int:
-			unitID = v
-		case map[string]any:
-			if idf, ok := v["id"].(float64); ok {
-				unitID = int(idf)
-			}
-		}
-	}
-	if unitID == 0 {
-		unitID = 17 // default gram
-	}
-
-	// Load units to determine category
-	unitsPage, err := c.Units().List(ctx, &unit.ListOptions{ListOptions: pagination.ListOptions{PageSize: 500}})
-	if err != nil {
-		return fmt.Errorf("list units: %w", err)
-	}
-	var unitName string
-	for _, u := range unitsPage.Results {
-		if u.ID == unitID {
-			unitName = u.Name
-			break
-		}
-	}
-
-	// Heuristic mapping
-	type convPair struct {
-		BaseUnitID      int
-		BaseAmount      float64
-		ConvertedUnitID int
-		ConvertedAmount float64
-	}
-	var pairs []convPair
-	lower := strings.ToLower(unitName)
-	if strings.Contains(lower, "gram") || strings.Contains(lower, "g ") {
-		// weight -> oz, lb, kg
-		pairs = []convPair{
-			{BaseUnitID: unitID, BaseAmount: 28.3495, ConvertedUnitID: 18, ConvertedAmount: 1}, // g -> oz
-			{BaseUnitID: unitID, BaseAmount: 453.592, ConvertedUnitID: 19, ConvertedAmount: 1}, // g -> lb
-			{BaseUnitID: unitID, BaseAmount: 1000, ConvertedUnitID: 20, ConvertedAmount: 1},    // g -> kg
-		}
-	} else if strings.Contains(lower, "millilitre") || strings.Contains(lower, "ml") {
-		pairs = []convPair{
-			{BaseUnitID: unitID, BaseAmount: 240, ConvertedUnitID: 21, ConvertedAmount: 1}, // ml -> cup
-			{BaseUnitID: unitID, BaseAmount: 15, ConvertedUnitID: 22, ConvertedAmount: 1},  // ml -> tbsp
-			{BaseUnitID: unitID, BaseAmount: 5, ConvertedUnitID: 23, ConvertedAmount: 1},   // ml -> tsp
-		}
-	}
-
-	if len(pairs) == 0 {
-		return fmt.Errorf("no heuristic conversions for unit %q", unitName)
-	}
-
-	created := []map[string]any{}
-	for _, p := range pairs {
-		// Check if conversion already exists
-		listOpts := &unit.ConversionListOptions{ListOptions: &pagination.ListOptions{PageSize: 500}}
-		foodIDPtr := foodID
-		listOpts.FoodID = &foodIDPtr
-		convPage, err := c.UnitConversions().List(ctx, listOpts)
-		if err != nil {
-			return fmt.Errorf("list conversions: %w", err)
-		}
-		exists := false
-		for _, cv := range convPage.Results {
-			if cv.BaseUnit != nil && cv.ConvertedUnit != nil && cv.Food != nil && cv.Food.ID == foodID {
-				if cv.BaseUnit.ID == p.BaseUnitID && cv.ConvertedUnit.ID == p.ConvertedUnitID {
-					exists = true
-					break
-				}
-			}
-		}
-		if exists {
-			continue
-		}
-		conv := &unit.Conversion{
-			BaseUnit:        &unit.Ref{ID: p.BaseUnitID},
-			BaseAmount:      p.BaseAmount,
-			ConvertedUnit:   &unit.Ref{ID: p.ConvertedUnitID},
-			ConvertedAmount: p.ConvertedAmount,
-			Food:            &unit.FoodRef{ID: foodID},
-		}
-		if dryRun {
-			created = append(created, map[string]any{
-				"base_unit_id":      p.BaseUnitID,
-				"base_amount":       p.BaseAmount,
-				"converted_unit_id": p.ConvertedUnitID,
-				"converted_amount":  p.ConvertedAmount,
-			})
-			continue
-		}
-		createdConv, err := c.UnitConversions().Create(ctx, conv)
-		if err != nil {
-			return fmt.Errorf("create conversion: %w", err)
-		}
-		created = append(created, map[string]any{
-			"id":                createdConv.ID,
-			"base_unit_id":      p.BaseUnitID,
-			"base_amount":       p.BaseAmount,
-			"converted_unit_id": p.ConvertedUnitID,
-			"converted_amount":  p.ConvertedAmount,
-		})
-	}
-
 	if dryRun {
-		fmt.Fprintf(cmd.ErrWriter, "[dry-run] would create %d conversions for food %d\n", len(created), foodID)
+		fmt.Fprintf(cmd.ErrWriter, "[dry-run] would create %d conversions for food %d\n", len(result.Created), foodID)
 	} else {
-		fmt.Fprintf(cmd.ErrWriter, "[auto-conversions] created %d conversions for food %d\n", len(created), foodID)
+		fmt.Fprintf(cmd.ErrWriter, "[auto-conversions] created %d conversions for food %d\n", len(result.Created), foodID)
 	}
-	return printJSON(created)
-}
-
-func jaccardSimilarity(a, b string) float64 {
-	setA := wordSet(strings.ToLower(a))
-	setB := wordSet(strings.ToLower(b))
-	if len(setA) == 0 && len(setB) == 0 {
-		return 1.0
-	}
-	intersection := 0
-	for w := range setA {
-		if _, ok := setB[w]; ok {
-			intersection++
-		}
-	}
-	union := len(setA) + len(setB) - intersection
-	if union == 0 {
-		return 0
-	}
-	return float64(intersection) / float64(union)
+	return printJSON(result)
 }

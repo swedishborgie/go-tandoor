@@ -99,7 +99,8 @@ func applyMealPlanFlags(cmd *cli.Command, payload *mealplan.MealPlan) error {
 		payload.Recipe = &recipe.Overview{ID: cmd.Int("recipe-id")}
 	}
 	if cmd.IsSet("meal-type-id") {
-		payload.MealType = &mealplan.MealType{ID: cmd.Int("meal-type-id")}
+		// MealTypeID (not MealType) is the marshaled write field.
+		payload.MealTypeID = cmd.Int("meal-type-id")
 	}
 	if cmd.IsSet("note") {
 		payload.Note = cmd.String("note")
@@ -118,14 +119,14 @@ func applyMealPlanFlags(cmd *cli.Command, payload *mealplan.MealPlan) error {
 		if err != nil {
 			return fmt.Errorf("parse --from-date: %w", err)
 		}
-		payload.FromDate = fromDate
+		payload.FromDate = &fromDate
 	}
 	if cmd.IsSet("to-date") {
 		toDate, err := parseDateOrDateTime(cmd.String("to-date"))
 		if err != nil {
 			return fmt.Errorf("parse --to-date: %w", err)
 		}
-		payload.ToDate = toDate
+		payload.ToDate = &toDate
 	}
 	return nil
 }
@@ -223,7 +224,7 @@ func mealPlansICALCommand() *cli.Command {
 func mealPlansAutoPlanCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "auto-plan",
-		Usage: "Auto-generate meal plans (POST /api/auto-meal-plan/)",
+		Usage: "Auto-generate meal plans (POST /api/auto-plan/)",
 		Flags: []cli.Flag{
 			&cli.StringFlag{Name: "start-date", Usage: "Start date/time (RFC3339 or YYYY-MM-DD)"},
 			&cli.StringFlag{Name: "end-date", Usage: "End date/time (RFC3339 or YYYY-MM-DD)"},
@@ -256,6 +257,10 @@ func mealPlansAutoPlanCommand() *cli.Command {
 				return fmt.Errorf("parse --shared: %w", err)
 			}
 
+			var sharedUsers []mealplan.SharedUser
+			for _, uid := range shared {
+				sharedUsers = append(sharedUsers, mealplan.SharedUser{ID: uid})
+			}
 			result, err := c.AutoPlan().Plan(ctx, &mealplan.AutoMealPlanRequest{
 				StartDate:   startDate,
 				EndDate:     endDate,
@@ -263,7 +268,7 @@ func mealPlansAutoPlanCommand() *cli.Command {
 				Keywords:    keywords,
 				KeywordMode: cmd.String("keyword-mode"),
 				Servings:    cmd.Float("servings"),
-				Shared:      shared,
+				Shared:      sharedUsers,
 				AddShopping: cmd.Bool("add-shopping"),
 			})
 			if err != nil {

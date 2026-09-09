@@ -199,7 +199,8 @@ func shoppingAddEntryCommand() *cli.Command {
 				payload.Unit = &unit.Unit{ID: cmd.Int("unit-id")}
 			}
 			if cmd.IsSet("amount") {
-				payload.Amount = cmd.Float("amount")
+				amount := cmd.Float("amount")
+				payload.Amount = &amount
 			}
 			if cmd.IsSet("note") {
 				payload.Note = cmd.String("note")
@@ -217,7 +218,8 @@ func shoppingAddEntryCommand() *cli.Command {
 				payload.OriginalText = cmd.String("original-text")
 			}
 			if cmd.IsSet("checked") {
-				payload.Checked = cmd.Bool("checked")
+				checked := cmd.Bool("checked")
+				payload.Checked = &checked
 			}
 
 			created, err := c.ShoppingEntries().Create(ctx, payload)

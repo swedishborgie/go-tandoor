@@ -18,56 +18,9 @@ import (
 	"time"
 
 	"github.com/itchyny/gojq"
-	"github.com/urfave/cli/v3"
 
 	"github.com/swedishborgie/go-tandoor"
-	"github.com/swedishborgie/go-tandoor/detector"
-	"github.com/swedishborgie/go-tandoor/food"
-	"github.com/swedishborgie/go-tandoor/pagination"
-	"github.com/swedishborgie/go-tandoor/property"
 )
-
-// propertyTypeIDs returns the ids of property types attached to f.
-func propertyTypeIDs(f *food.Food) []int {
-	ids := make([]int, 0, len(f.Properties))
-	for _, p := range f.Properties {
-		ids = append(ids, p.Type.ID)
-	}
-	return ids
-}
-
-// fetchAllPropertyTypes enumerates every property type on the server.
-func fetchAllPropertyTypes(ctx context.Context, c *tandoor.Client) ([]property.Type, error) {
-	svc := property.NewTypeService(c)
-	page, err := svc.List(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("list property types: %w", err)
-	}
-	return pagination.CollectAll(ctx, page, func(pageNum int) (*pagination.Paginated[property.Type], error) {
-		return svc.List(ctx, &property.TypeListOptions{ListOptions: pagination.ListOptions{Page: pageNum}})
-	})
-}
-
-// newAuditRegistry returns a detector registry with the built-in detectors
-// plus missing_properties, whose expected type set is enumerated from the
-// server (GET /api/property-type/). If the enumeration fails, it warns on
-// stderr and returns the registry without the detector — the audit's core
-// job (names/FDC) still runs. Callers should invoke this once per command
-// invocation, not per food.
-func newAuditRegistry(ctx context.Context, c *tandoor.Client, cmd *cli.Command) *detector.Registry {
-	reg := detector.NewRegistry()
-	types, err := fetchAllPropertyTypes(ctx, c)
-	if err != nil {
-		fmt.Fprintf(cmd.ErrWriter, "[warn] audit: could not enumerate property types from server, skipping missing_properties check: %v\n", err)
-		return reg
-	}
-	expected := make([]detector.PropertyTypeInfo, 0, len(types))
-	for _, t := range types {
-		expected = append(expected, detector.PropertyTypeInfo{ID: t.ID, Name: t.Name})
-	}
-	reg.Add(detector.NewMissingPropertiesDetector(expected))
-	return reg
-}
 
 // oidcLogin initiates an OIDC login flow by opening the browser and
 // catching the callback on a local HTTP server.

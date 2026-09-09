@@ -60,9 +60,10 @@ func ingredientsListCommand() *cli.Command {
 				filtered := make([]ingredient.Ingredient, 0)
 				for _, st := range r.Steps {
 					for _, ing := range st.Ingredients {
+						amount := ing.Amount
 						filtered = append(filtered, ingredient.Ingredient{
 							ID:           ing.ID,
-							Amount:       ing.Amount,
+							Amount:       &amount,
 							Note:         ing.Note,
 							Order:        ing.Order,
 							IsHeader:     ing.IsHeader,
@@ -193,7 +194,8 @@ func applyIngredientFlags(ctx context.Context, c *tandoor.Client, cmd *cli.Comma
 		payload.Unit = &ingredient.Unit{ID: unitID, Name: u.Name}
 	}
 	if cmd.IsSet("amount") {
-		payload.Amount = cmd.Float("amount")
+		amount := cmd.Float("amount")
+		payload.Amount = &amount
 	}
 	if cmd.IsSet("note") {
 		payload.Note = cmd.String("note")

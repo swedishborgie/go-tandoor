@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/swedishborgie/go-tandoor"
+	"github.com/swedishborgie/go-tandoor/auditfood"
 	"github.com/swedishborgie/go-tandoor/detector"
 	"github.com/swedishborgie/go-tandoor/food"
 	"github.com/swedishborgie/go-tandoor/ingredient"
@@ -23,7 +24,9 @@ func auditConnectorsCommand() *cli.Command {
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			c := ctx.Value(ctxKeyClient).(*tandoor.Client)
 			pageSize := cmd.Int("page-size")
-			reg := newAuditRegistry(ctx, c, cmd)
+			reg := auditfood.NewRegistry(ctx, c, func(format string, args ...any) {
+				fmt.Fprintf(cmd.ErrWriter, "[warn] "+format+"\n", args...)
+			})
 
 			type ConnectorEntry struct {
 				FoodID        int      `json:"food_id"`
@@ -52,7 +55,7 @@ func auditConnectorsCommand() *cli.Command {
 					detFood := detector.Food{
 						Name:            f.Name,
 						FDCID:           f.FDCID,
-						PropertyTypeIDs: propertyTypeIDs(&f),
+						PropertyTypeIDs: auditfood.PropertyTypeIDs(f.Properties),
 					}
 					// Check only connector_start category.
 					issues := reg.CheckCategories(detFood, []string{"connector_start"})
