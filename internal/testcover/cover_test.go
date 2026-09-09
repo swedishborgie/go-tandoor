@@ -13,13 +13,13 @@ import (
 func restoreGoverdir(t *testing.T) string {
 	t.Helper()
 	prev := os.Getenv("GOCOVERDIR")
-	t.Cleanup(func() {
-		if prev == "" {
-			os.Unsetenv("GOCOVERDIR")
-		} else {
-			os.Setenv("GOCOVERDIR", prev)
-		}
-	})
+	// Restore the ambient value after the test; t.Setenv can't restore a
+	// value captured before the test mutated the env, and leaving
+	// GOCOVERDIR pointing at the suite's temp dir would misdirect the test
+	// binary's own coverage flush under `go test -cover`.
+	//
+	//nolint:usetesting // os.Setenv in cleanup restores the pre-test value
+	t.Cleanup(func() { _ = os.Setenv("GOCOVERDIR", prev) })
 	return prev
 }
 
