@@ -9,8 +9,9 @@ meal plans, and food data — built for humans *and* AI agents.
   meal plans, cook logs, recipe books, properties, spaces, imports, and more.
 - **CLI** (`tandoor-cli`): a single binary that wraps the API with sensible subcommands,
   batch operations, JSON output (`--jq` filters, `--output-file`), dry-run mode for writes,
-  food-data audit tooling, and a client for the USDA FoodData Central (FDC) API.
-- **MCP server** (`tandoor-mcp`): a [Model Context Protocol](https://modelcontextprotocol.io/) server
+  food-data audit tooling, and a client for the USDA FoodData Central (FDC) API. The same
+  binary also runs as an MCP server via `tandoor-cli mcp`.
+- **MCP server** (`tandoor-cli mcp`): a [Model Context Protocol](https://modelcontextprotocol.io/) server
   exposing the API as ~200 tools for AI agents, with optional parameters,
   a read-only mode, and stdio or streamable-HTTP transports. Embeddable via the `mcp` package.
 
@@ -22,11 +23,7 @@ meal plans, and food data — built for humans *and* AI agents.
 go install github.com/swedishborgie/go-tandoor/cmd/tandoor-cli@latest
 ```
 
-### MCP server
-
-```sh
-go install github.com/swedishborgie/go-tandoor/cmd/tandoor-mcp@latest
-```
+The CLI binary also serves as the MCP server (`tandoor-cli mcp`) — one install covers both.
 
 ### Library
 
@@ -134,7 +131,7 @@ tandoor-cli audit connectors                         # analyze +/-/& ingredient 
 
 ## MCP server
 
-`tandoor-mcp` exposes the Tandoor API to AI agents as MCP tools: ~200 tools covering every
+`tandoor-cli mcp` exposes the Tandoor API to AI agents as MCP tools: ~200 tools covering every
 domain (recipes, ingredients, steps, foods, units, properties, shopping, meal plans, cook
 logs, books, imports, spaces/users, FDC, and audit composites). Design notes:
 
@@ -148,12 +145,14 @@ logs, books, imports, spaces/users, FDC, and audit composites). Design notes:
 
 ### Usage
 
+One binary operates as either CLI or MCP server:
+
 ```sh
 # stdio transport (default): speaks MCP over stdin/stdout; logs go to stderr
-TANDOOR_BASE_URL=https://recipes.example.com TANDOOR_TOKEN=tda_... tandoor-mcp
+TANDOOR_BASE_URL=https://recipes.example.com TANDOOR_TOKEN=tda_... tandoor-cli mcp
 
 # streamable HTTP transport: POST/GET http://127.0.0.1:8090/mcp
-tandoor-mcp --transport http --http-addr 127.0.0.1:8090
+tandoor-cli mcp --transport http --http-addr 127.0.0.1:8090
 ```
 
 Configuration (flags or env vars):
@@ -175,7 +174,8 @@ Claude Desktop / Claude Code / pi accept a command-based server entry, e.g.
 {
   "mcpServers": {
     "tandoor": {
-      "command": "tandoor-mcp",
+      "command": "tandoor-cli",
+      "args": ["mcp"],
       "env": {
         "TANDOOR_BASE_URL": "https://recipes.example.com",
         "TANDOOR_TOKEN": "tda_..."
@@ -604,12 +604,11 @@ Layout:
 ├── pagination/        # Paginated[T] and ListOptions
 ├── <domain>/          # typed services: recipe, food, shopping, mealplan, ...
 ├── fdc/               # USDA FoodData Central client
-├── mcp/               # embeddable MCP server library + tandoor-mcp tool catalog
+├── mcp/               # embeddable MCP server library + tool catalog
 ├── detector/          # food-name issue detectors (audit support)
 ├── normalize/         # food-name normalization (audit support)
 ├── internal/          # shared HTTP executor; integration & CLI e2e test suites
-├── cmd/tandoor-cli/   # the CLI (urfave/cli v3)
-└── cmd/tandoor-mcp/   # the MCP server binary
+└── cmd/tandoor-cli/   # the CLI (urfave/cli v3), including the "mcp" MCP-server subcommand
 ```
 
 The API surface tracks the Tandoor REST API as documented in the [Tandoor documentation](https://docs.tandoor.me/).

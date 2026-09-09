@@ -83,10 +83,10 @@ func waitReady() error {
 	}
 }
 
-// buildMCP compiles the tandoor-mcp binary once per suite.
+// buildMCP compiles the tandoor-cli binary (the MCP entry point) once per suite.
 func buildMCP() (string, error) {
 	tmp := filepath.Join(os.TempDir(), "tandoor-mcp-e2e")
-	cmd := exec.Command("go", "build", "-o", tmp, "./cmd/tandoor-mcp")
+	cmd := exec.Command("go", "build", "-o", tmp, "./cmd/tandoor-cli")
 	cmd.Dir = repoRoot()
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -102,23 +102,30 @@ func repoRoot() string {
 	return filepath.Join(filepath.Dir(file), "..", "..", "..")
 }
 
-// newMCPClient starts the tandoor-mcp binary as a subprocess and returns an
+// newMCPClient starts "tandoor-cli mcp" as a subprocess and returns an
 // initialized in-process stdio client.
 func newMCPClient(t *testing.T) *client.Client {
 	t.Helper()
 	env := append(os.Environ(), "TANDOOR_BASE_URL="+baseURL, "TANDOOR_TOKEN="+token)
-	mc, err := client.NewStdioMCPClient(mcpBin, env)
+	mc, err := client.NewStdioMCPClient(mcpBin, env, "mcp")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = mc.Close() })
 
+	requireInitialized(t, mc)
+	return mc
+}
+
+// requireInitialized completes the MCP initialize handshake with the given
+// stdio client, failing the test on error.
+func requireInitialized(t *testing.T, mc *client.Client) {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	initReq := mcpgo.InitializeRequest{}
 	initReq.Params.ProtocolVersion = mcpgo.LATEST_PROTOCOL_VERSION
 	initReq.Params.ClientInfo = mcpgo.Implementation{Name: "tandoor-mcp-e2e", Version: "0.0.0"}
-	_, err = mc.Initialize(ctx, initReq)
+	_, err := mc.Initialize(ctx, initReq)
 	require.NoError(t, err)
-	return mc
 }
 
 // callTool invokes a tool and returns the parsed JSON object result,

@@ -112,7 +112,7 @@ func registerImportTools(d *deps) []toolDef {
 	importAll := mcpgo.NewTool("import_import_all",
 		mcpgo.WithDescription("Execute all pending staged recipe imports."),
 	)
-	importAllHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	importAllHandler := func(ctx context.Context, _ mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		return runWrite(func() (any, error) {
 			return d.Tandoor.RecipeImports().ImportAll(ctx)
 		})

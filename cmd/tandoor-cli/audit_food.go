@@ -184,7 +184,7 @@ func auditFoodFix() *cli.Command {
 			if err != nil {
 				return err
 			}
-				switch {
+			switch {
 			case dryRun:
 				fmt.Fprintln(cmd.ErrWriter, "[dry-run] plan for food", id)
 			case result.Merged:

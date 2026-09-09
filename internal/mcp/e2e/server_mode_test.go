@@ -19,7 +19,7 @@ func newMCPClientWithEnv(t *testing.T, extraEnv ...string) *client.Client {
 	t.Helper()
 	env := append(os.Environ(), "TANDOOR_BASE_URL="+baseURL, "TANDOOR_TOKEN="+token)
 	env = append(env, extraEnv...)
-	mc, err := client.NewStdioMCPClient(mcpBin, env)
+	mc, err := client.NewStdioMCPClient(mcpBin, env, "mcp")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = mc.Close() })
 

@@ -1,7 +1,8 @@
 # MCP End-to-End Tests
 
-These tests build the `tandoor-mcp` binary and drive it as an MCP server over
-stdio against a real Tandoor instance (2.6.13) started via podman-compose.
+These tests build the `tandoor-cli` binary and drive its `mcp` subcommand as
+an MCP server over stdio against a real Tandoor instance (2.6.13) started
+via podman-compose.
 
 ## Run
 
@@ -16,15 +17,15 @@ INTEGRATION_TESTS=1 go test -tags=integration ./internal/mcp/e2e -run TestE2ERec
 
 ## What is tested
 
-* MCP binary builds once per suite via `go build ./cmd/tandoor-mcp`
+* MCP binary builds once per suite via `go build ./cmd/tandoor-cli`
 * TestMain starts the compose stack on port 8081, creates a superuser, seeds
   space/household/meal-type/book data, and obtains an API token
-* Each test spawns the binary with `TANDOOR_BASE_URL`/`TANDOOR_TOKEN` and
-  talks MCP over stdio (mcp-go stdio client)
-* Write-tool lifecycle per resource: `dry_run` preview → apply → patch/update
-  → `dry_run` delete → delete → verify gone
+* Each test spawns `tandoor-cli mcp` with `TANDOOR_BASE_URL`/`TANDOOR_TOKEN`
+  and talks MCP over stdio (mcp-go stdio client)
+* Write-tool lifecycle per resource: apply → patch/update → delete → verify
+  gone (write tools perform the operation and return the result object)
 * M3 composites: `property_attach` idempotency (create → update),
-  `food_ensure` cycle (would_create → created → found), `food_audit_inspect`
+  `food_ensure` cycle (not_found → created → found), `food_audit_inspect`
   + `food_audit_fix` rename, `food_find_duplicates` grouping,
   `shopping_recipe_create_entries` scaled bulk create, `meal_plan_auto_plan`
   real plan, share-link create, access-token cycle, household cycle,

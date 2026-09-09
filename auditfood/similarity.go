@@ -1,5 +1,5 @@
 // Package auditfood contains the shared food-audit logic used by both the
-// tandoor-cli commands and the tandoor-mcp tools: food ensure, property
+// tandoor-cli commands and the MCP tools: food ensure, property
 // attach, name auditing (inspect/fix), duplicate detection, FDC property
 // import, and auto unit conversions.
 //

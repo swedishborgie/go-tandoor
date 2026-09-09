@@ -131,6 +131,7 @@ func main() {
 			GetPropertyTypesCommand(),
 			GetAuditCommand(),
 			GetFdcCommand(),
+			GetMCPCommand(),
 		},
 	}
 
