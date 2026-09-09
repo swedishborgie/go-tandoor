@@ -4,14 +4,17 @@
 // podman).
 package testcompose
 
-import "os/exec"
+import (
+	"context"
+	"os/exec"
+)
 
 // Cmd returns an exec.Cmd running the given compose arguments. The
 // podman-compose single-binary form is used when available; otherwise the
 // command falls back to "docker compose <args>".
 func Cmd(args ...string) *exec.Cmd {
 	if _, err := exec.LookPath("podman-compose"); err == nil {
-		return exec.Command("podman-compose", args...)
+		return exec.CommandContext(context.Background(), "podman-compose", args...)
 	}
-	return exec.Command("docker", append([]string{"compose"}, args...)...)
+	return exec.CommandContext(context.Background(), "docker", append([]string{"compose"}, args...)...)
 }
