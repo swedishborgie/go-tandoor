@@ -22,8 +22,8 @@ func TestIntegrationMealPlanPaginationEdge(t *testing.T) {
 	mt := &mealplan.MealType{
 		Name:  "Edge MealType",
 		Order: 1,
-		Time:  "18:00:00",
-		Color: "#abcdef",
+		Time:  strPtr("18:00:00"),
+		Color: strPtr("#abcdef"),
 	}
 	createdMT, err := client.MealTypes().Create(ctx, mt)
 	require.NoError(t, err)
@@ -34,12 +34,14 @@ func TestIntegrationMealPlanPaginationEdge(t *testing.T) {
 	createdIDs := make([]int, 0, 7)
 	base := time.Now().Add(24 * time.Hour).UTC()
 	for i := 0; i < 7; i++ {
+		from := base.Add(time.Duration(i) * time.Hour)
+		to := base.Add(time.Duration(i+1) * time.Hour)
 		mp := &mealplan.MealPlan{
 			Title:      "Edge Plan",
 			MealTypeID: createdMT.ID,
 			Servings:   1,
-			FromDate:   base.Add(time.Duration(i) * time.Hour),
-			ToDate:     base.Add(time.Duration(i+1) * time.Hour),
+			FromDate:   &from,
+			ToDate:     &to,
 			Note:       "test",
 		}
 		created, err := client.MealPlans().Create(ctx, mp)

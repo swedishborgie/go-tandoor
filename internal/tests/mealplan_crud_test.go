@@ -22,8 +22,8 @@ func TestIntegrationMealPlanCRUD(t *testing.T) {
 	mt := &mealplan.MealType{
 		Name:  "Integration Test Meal Type",
 		Order: 1,
-		Time:  "12:00:00",
-		Color: "#ff0000",
+		Time:  strPtr("12:00:00"),
+		Color: strPtr("#ff0000"),
 	}
 	createdMT, err := client.MealTypes().Create(ctx, mt)
 	if err != nil {
@@ -36,12 +36,13 @@ func TestIntegrationMealPlanCRUD(t *testing.T) {
 	t.Logf("created meal type id: %d", mealTypeID)
 
 	from := time.Now().Add(24 * time.Hour).UTC()
+	to := from.Add(1 * time.Hour)
 	// Create a meal plan entry
 	mp := &mealplan.MealPlan{
 		Title:      "Integration Test Meal",
 		MealTypeID: mealTypeID,
-		FromDate:   from,
-		ToDate:     from.Add(1 * time.Hour),
+		FromDate:   &from,
+		ToDate:     &to,
 		Servings:   2,
 	}
 	created, err := client.MealPlans().Create(ctx, mp)

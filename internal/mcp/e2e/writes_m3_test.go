@@ -23,7 +23,7 @@ func firstListID(t *testing.T, c *client.Client, tool string, args map[string]an
 }
 
 // TestE2EPropertyAttachIdempotent verifies the property_attach composite:
-// dry_run preview, create, then re-run updates the same property.
+// create, then re-run updates the same property.
 func TestE2EPropertyAttachIdempotent(t *testing.T) {
 	c := newMCPClient(t)
 	suffix := runSuffix()
@@ -36,17 +36,8 @@ func TestE2EPropertyAttachIdempotent(t *testing.T) {
 	food := callTool(t, c, "food_create", map[string]any{"name": "e2e-pattach-food-" + suffix})
 	foodID := int(food["id"].(float64))
 
-	// dry_run: would_create (per_100_unit_id pins the basis unit; the fresh
-	// instance has no unit named "gram")
-	dry := callTool(t, c, "property_attach", map[string]any{
-		"food_id": foodID, "property_type_id": ptID, "property_amount": 42,
-		"per_100_unit_id": gramID, "dry_run": true,
-	})
-	require.Equal(t, true, dry["dry_run"])
-	res := dry["result"].(map[string]any)
-	require.Equal(t, "would_create", res["action"])
-
-	// create
+	// create (per_100_unit_id pins the basis unit; the fresh instance has no
+	// unit named "gram")
 	created := callTool(t, c, "property_attach", map[string]any{
 		"food_id": foodID, "property_type_id": ptID, "property_amount": 42,
 		"per_100_unit_id": gramID,
@@ -66,22 +57,22 @@ func TestE2EPropertyAttachIdempotent(t *testing.T) {
 	require.Equal(t, float64(99), props[0].(map[string]any)["property_amount"])
 }
 
-// TestE2EFoodEnsureCycle verifies the food_ensure composite: missing food is
-// created, and a second run finds it (idempotent).
+// TestE2EFoodEnsureCycle verifies the food_ensure composite: report-only mode
+// (force_create=false) finds nothing, the real run creates the missing food,
+// and a second run finds it (idempotent).
 func TestE2EFoodEnsureCycle(t *testing.T) {
 	c := newMCPClient(t)
 	name := "e2e-ensure-" + runSuffix()
 
-	// dry_run: would be created
-	dry := callTool(t, c, "food_ensure", map[string]any{"names": []any{name}, "dry_run": true})
-	require.Equal(t, true, dry["dry_run"])
-	report := dry["report"].(map[string]any)
+	// report-only: the name does not exist yet, and nothing is created
+	report := callTool(t, c, "food_ensure", map[string]any{"names": []any{name}, "force_create": false})
 	summary := report["summary"].(map[string]any)
 	require.Equal(t, float64(0), summary["created"])
+	require.Equal(t, float64(1), summary["not_found"])
 	entry := report["results"].(map[string]any)[name].(map[string]any)
-	require.Equal(t, "would_create", entry["status"])
+	require.Equal(t, "not_found", entry["status"])
 
-	// apply: creates the food (non-dry_run returns the report directly)
+	// apply: creates the food
 	out := callTool(t, c, "food_ensure", map[string]any{"names": []any{name}})
 	report = out
 	summary = report["summary"].(map[string]any)
@@ -111,9 +102,9 @@ func TestE2EFoodAuditInspectAndFix(t *testing.T) {
 	require.True(t, ok, "inspect should suggest a name: %v", inspect)
 	require.NotEqual(t, rawName, suggested)
 
-	// dry_run: would rename
-	dry := callTool(t, c, "food_audit_fix", map[string]any{"food_id": foodID, "dry_run": true})
-	require.Equal(t, true, dry["dry_run"])
+	// preview: would rename (read-only, no write)
+	preview := callTool(t, c, "food_audit_fix_preview", map[string]any{"food_id": foodID})
+	require.Equal(t, suggested, preview["new_name"])
 
 	// apply: renames
 	fixed := callTool(t, c, "food_audit_fix", map[string]any{"food_id": foodID})
@@ -182,20 +173,14 @@ func TestE2EShoppingRecipeCreateEntries(t *testing.T) {
 	list := callTool(t, c, "shopping_list_create", map[string]any{"name": "e2e-shop-list-" + suffix})
 	listID := int(list["id"].(float64))
 
-	// dry_run: preview both steps (list-recipe link + bulk create)
-	dry := callTool(t, c, "shopping_recipe_create_entries", map[string]any{
-		"recipe_id": recipeID, "shopping_list_ids": []any{listID}, "dry_run": true,
-	})
-	require.Equal(t, true, dry["dry_run"])
-	steps, ok := dry["steps"].([]any)
-	require.True(t, ok, "expected steps in dry_run: %v", dry)
-	require.Len(t, steps, 2)
-
-	// apply at double servings: 100 -> 200
+	// apply at double servings: 100 -> 200 (creates a shopping list recipe
+	// link and the scaled entries)
 	out := callTool(t, c, "shopping_recipe_create_entries", map[string]any{
 		"recipe_id": recipeID, "shopping_list_ids": []any{listID}, "servings": 4,
 	})
-	require.NotEmpty(t, out)
+	entries, ok := out["entries"].([]any)
+	require.True(t, ok, "expected entries in result: %v", out)
+	require.NotEmpty(t, entries, "bulk create should return the derived entries")
 
 	// the entry landed on the list, scaled (all=true returns a flat array)
 	entryText, isErr := callToolRaw(t, c, "shopping_entry_list", map[string]any{"all": true})
@@ -213,8 +198,7 @@ func TestE2EShoppingRecipeCreateEntries(t *testing.T) {
 	require.Contains(t, scaled, float64(200), "expected a scaled entry for amount 200, got %v", scaled)
 }
 
-// TestE2EAutoPlan verifies meal_plan_auto_plan dry_run and a real plan that
-// produces a meal plan entry.
+// TestE2EAutoPlan verifies meal_plan_auto_plan produces a meal plan entry.
 func TestE2EAutoPlan(t *testing.T) {
 	c := newMCPClient(t)
 	suffix := runSuffix()
@@ -242,19 +226,12 @@ func TestE2EAutoPlan(t *testing.T) {
 	start := planDate
 	end := planDate
 
-	dry := callTool(t, c, "meal_plan_auto_plan", map[string]any{
-		"start_date": start, "end_date": end, "meal_type_id": mealTypeID,
-		"keyword_ids": []any{kwID}, "dry_run": true,
-	})
-	require.Equal(t, true, dry["dry_run"])
-	require.Equal(t, "POST", dry["method"])
-	require.Equal(t, "/api/auto-plan/", dry["path"])
-
 	out := callTool(t, c, "meal_plan_auto_plan", map[string]any{
 		"start_date": start, "end_date": end, "meal_type_id": mealTypeID,
 		"keyword_ids": []any{kwID},
 	})
-	require.NotContains(t, out, "error", "auto plan should succeed: %v", out)
+	// the endpoint echoes back the processed request
+	require.Equal(t, float64(mealTypeID), out["meal_type_id"])
 
 	// the plan exists and references the recipe (all=true returns a flat array)
 	planText, isErr := callToolRaw(t, c, "meal_plan_list", map[string]any{"all": true})

@@ -40,7 +40,7 @@ func TestIntegrationShoppingEntryCRUD(t *testing.T) {
 
 	// Create shopping list entry
 	entry := &shopping.ListEntry{
-		Amount: 2.5,
+		Amount: floatPtr(2.5),
 		Note:   "Test entry",
 		Food: &food.Shopping{
 			ID:   createdFood.ID,

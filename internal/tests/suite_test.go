@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package tests
 
 import (
@@ -19,6 +22,9 @@ var (
 	baseURL = "http://localhost:8080"
 	client  *tandoor.Client
 )
+
+func strPtr(s string) *string     { return &s }
+func floatPtr(f float64) *float64 { return &f }
 
 func TestMain(m *testing.M) {
 	fmt.Println("TESTMAIN START")

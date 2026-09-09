@@ -40,7 +40,7 @@ func TestIntegrationShoppingEntryBulkUpdate(t *testing.T) {
 	entryIDs := make([]int, 0, 3)
 	for i := 0; i < 3; i++ {
 		entry := &shopping.ListEntry{
-			Amount: float64(i + 1),
+			Amount: floatPtr(float64(i + 1)),
 			Food: &food.Shopping{
 				ID:   createdFood.ID,
 				Name: createdFood.Name,
@@ -73,6 +73,7 @@ func TestIntegrationShoppingEntryBulkUpdate(t *testing.T) {
 	for _, id := range entryIDs {
 		got, err := client.ShoppingEntries().Get(ctx, id)
 		require.NoError(t, err)
-		require.True(t, got.Checked)
+		require.NotNil(t, got.Checked)
+		require.True(t, *got.Checked)
 	}
 }

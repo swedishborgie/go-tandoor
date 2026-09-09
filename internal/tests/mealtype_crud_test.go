@@ -20,8 +20,8 @@ func TestIntegrationMealTypeCRUD(t *testing.T) {
 	mt := &mealplan.MealType{
 		Name:  "Integration Test MealType",
 		Order: 99,
-		Time:  "12:00:00",
-		Color: "#123456",
+		Time:  strPtr("12:00:00"),
+		Color: strPtr("#123456"),
 	}
 	created, err := client.MealTypes().Create(ctx, mt)
 	require.NoError(t, err)

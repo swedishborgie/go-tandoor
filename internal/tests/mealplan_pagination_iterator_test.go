@@ -21,8 +21,8 @@ func TestIntegrationMealPlanPaginationIterator(t *testing.T) {
 	mt := &mealplan.MealType{
 		Name:  "Pagination Meal Type",
 		Order: 1,
-		Time:  "12:00:00",
-		Color: "#00ff00",
+		Time:  strPtr("12:00:00"),
+		Color: strPtr("#00ff00"),
 	}
 	createdMT, err := client.MealTypes().Create(ctx, mt)
 	require.NoError(t, err)
@@ -32,11 +32,13 @@ func TestIntegrationMealPlanPaginationIterator(t *testing.T) {
 	// Create 23 meal plans
 	ids := []int{}
 	for i := 0; i < 23; i++ {
+		from := time.Now().Add(time.Duration(i) * 24 * time.Hour)
+		to := time.Now().Add(time.Duration(i+1) * 24 * time.Hour)
 		mp := &mealplan.MealPlan{
 			Title:      "Meal Plan Pagination " + string(rune('A'+i%26)),
 			MealTypeID: createdMT.ID,
-			FromDate:   time.Now().Add(time.Duration(i) * 24 * time.Hour),
-			ToDate:     time.Now().Add(time.Duration(i+1) * 24 * time.Hour),
+			FromDate:   &from,
+			ToDate:     &to,
 			Servings:   1,
 		}
 		created, err := client.MealPlans().Create(ctx, mp)

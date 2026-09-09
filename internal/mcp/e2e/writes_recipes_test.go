@@ -44,18 +44,6 @@ func TestE2ERecipeWriteCycle(t *testing.T) {
 	c := newMCPClient(t)
 	name := "e2e-recipe-" + runSuffix()
 
-	// dry_run: raw data passthrough preview
-	dry := callTool(t, c, "recipe_create", map[string]any{
-		"data":    map[string]any{"name": name, "servings": 3, "working_time": 15, "steps": []any{}},
-		"dry_run": true,
-	})
-	require.Equal(t, true, dry["dry_run"])
-	require.Equal(t, "POST", dry["method"])
-	require.Equal(t, "/api/recipe/", dry["path"])
-	body := dry["body"].(map[string]any)
-	require.Equal(t, name, body["name"])
-
-	// apply
 	created := callTool(t, c, "recipe_create", map[string]any{
 		"data": map[string]any{"name": name, "servings": 3, "working_time": 15, "steps": []any{}},
 	})
@@ -82,7 +70,7 @@ func TestE2ERecipeWriteCycle(t *testing.T) {
 	require.Equal(t, true, shop["added"])
 
 	// delete
-	require.Equal(t, true, callTool(t, c, "recipe_delete", map[string]any{"id": id, "dry_run": false})["deleted"])
+	require.Equal(t, true, callTool(t, c, "recipe_delete", map[string]any{"id": id})["deleted"])
 	_, isErr := callToolRaw(t, c, "recipe_get", map[string]any{"id": id})
 	require.True(t, isErr, "deleted recipe should be gone")
 }
@@ -108,15 +96,6 @@ func TestE2EShoppingListAddRecipe(t *testing.T) {
 	})
 	recipeID := int(recipe["id"].(float64))
 
-	// dry_run: composite preview with two steps
-	dry := callTool(t, c, "shopping_list_add_recipe", map[string]any{
-		"list_id": listID, "recipe_id": recipeID, "servings": 4, "dry_run": true,
-	})
-	require.Equal(t, true, dry["dry_run"])
-	steps := dry["steps"].([]any)
-	require.Len(t, steps, 2)
-
-	// apply
 	added := callTool(t, c, "shopping_list_add_recipe", map[string]any{
 		"list_id": listID, "recipe_id": recipeID, "servings": 4,
 	}) // response is the validated serializer data: {entries, shopping_lists_ids}

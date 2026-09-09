@@ -18,9 +18,6 @@ func TestE2EPropertyWriteCycle(t *testing.T) {
 	require.Greater(t, typeID, 0)
 
 	// property (standalone, no food — 2.6.13 property serializer has no food FK)
-	dry := callTool(t, c, "property_create", map[string]any{"property_type_id": typeID, "property_amount": 250.5, "dry_run": true})
-	require.Equal(t, "/api/property/", dry["path"])
-
 	created := callTool(t, c, "property_create", map[string]any{"property_type_id": typeID, "property_amount": 250.5})
 	id := int(created["id"].(float64))
 	require.Greater(t, id, 0)

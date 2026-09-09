@@ -21,16 +21,6 @@ func TestE2EKeywordWriteCycle(t *testing.T) {
 	c := newMCPClient(t)
 	name := "e2e-keyword-" + runSuffix()
 
-	// dry_run: preview without sending
-	dry := callTool(t, c, "keyword_create", map[string]any{"name": name, "dry_run": true})
-	require.Equal(t, true, dry["dry_run"])
-	require.Equal(t, "POST", dry["method"])
-	require.Equal(t, "/api/keyword/", dry["path"])
-	body, ok := dry["body"].(map[string]any)
-	require.True(t, ok, "dry_run body should be an object: %v", dry)
-	require.Equal(t, name, body["name"])
-
-	// apply
 	created := callTool(t, c, "keyword_create", map[string]any{"name": name})
 	id := int(created["id"].(float64))
 	require.Greater(t, id, 0)
@@ -42,11 +32,7 @@ func TestE2EKeywordWriteCycle(t *testing.T) {
 	patched := callTool(t, c, "keyword_patch", map[string]any{"id": id, "description": "e2e keyword desc"})
 	require.Equal(t, "e2e keyword desc", patched["description"])
 
-	// delete: dry_run then apply
-	dryDel := callTool(t, c, "keyword_delete", map[string]any{"id": id, "dry_run": true})
-	require.Equal(t, true, dryDel["dry_run"])
-	require.Equal(t, "DELETE", dryDel["method"])
-	require.Equal(t, fmt.Sprintf("/api/keyword/%d/", id), dryDel["path"])
+	// delete
 	del := callTool(t, c, "keyword_delete", map[string]any{"id": id})
 	require.Equal(t, true, del["deleted"])
 
@@ -59,9 +45,6 @@ func TestE2EFoodWriteCycle(t *testing.T) {
 	c := newMCPClient(t)
 	name := "e2e-food-" + runSuffix()
 
-	dry := callTool(t, c, "food_create", map[string]any{"name": name, "dry_run": true})
-	require.Equal(t, "/api/food/", dry["path"])
-
 	created := callTool(t, c, "food_create", map[string]any{"name": name, "description": "e2e food"})
 	id := int(created["id"].(float64))
 	require.Greater(t, id, 0)
@@ -69,7 +52,7 @@ func TestE2EFoodWriteCycle(t *testing.T) {
 	patched := callTool(t, c, "food_patch", map[string]any{"id": id, "ignore_shopping": true})
 	require.Equal(t, true, patched["ignore_shopping"])
 
-	del := callTool(t, c, "food_delete", map[string]any{"id": id, "dry_run": false})
+	del := callTool(t, c, "food_delete", map[string]any{"id": id})
 	require.Equal(t, true, del["deleted"])
 }
 
@@ -77,7 +60,7 @@ func TestE2EUnitWriteCycle(t *testing.T) {
 	c := newMCPClient(t)
 	name := "e2e-unit-" + runSuffix()
 
-	created := callTool(t, c, "unit_create", map[string]any{"name": name, "dry_run": false})
+	created := callTool(t, c, "unit_create", map[string]any{"name": name})
 	id := int(created["id"].(float64))
 	require.Greater(t, id, 0)
 
@@ -99,11 +82,6 @@ func TestE2EUnitWriteCycle(t *testing.T) {
 // the recipe payload, then managed through the standalone endpoints.
 func TestE2EStepWriteCycle(t *testing.T) {
 	c := newMCPClient(t)
-
-	// dry_run: preview a standalone step create without sending it
-	dry := callTool(t, c, "step_create", map[string]any{"instruction": "stir", "dry_run": true})
-	require.Equal(t, true, dry["dry_run"])
-	require.Equal(t, "[]", fmt.Sprint(dry["body"].(map[string]any)["ingredients"]), "create body must carry an empty ingredients list")
 
 	recipe := callTool(t, c, "recipe_create", map[string]any{"data": map[string]any{
 		"name":     "e2e-step-recipe-" + runSuffix(),
