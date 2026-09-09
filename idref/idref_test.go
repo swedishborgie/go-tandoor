@@ -41,21 +41,21 @@ func TestMarshalFullObject(t *testing.T) {
 	p := plain{ID: 5, Name: "gram"}
 	b, err := json.Marshal(&p)
 	require.NoError(t, err)
-	assert.Equal(t, `{"id":5,"name":"gram"}`, string(b))
+	assert.JSONEq(t, `{"id":5,"name":"gram"}`, string(b))
 }
 
 func TestMarshalFullObjectNoID(t *testing.T) {
 	p := plain{Name: "new-unit"}
 	b, err := json.Marshal(&p)
 	require.NoError(t, err)
-	assert.Equal(t, `{"name":"new-unit"}`, string(b))
+	assert.JSONEq(t, `{"name":"new-unit"}`, string(b))
 }
 
 func TestMarshalExtras(t *testing.T) {
 	p := plain{ID: 3, Name: "x", Note: "d"}
 	b, err := json.Marshal(&p)
 	require.NoError(t, err)
-	assert.Equal(t, `{"id":3,"name":"x","note":"d"}`, string(b))
+	assert.JSONEq(t, `{"id":3,"name":"x","note":"d"}`, string(b))
 }
 
 func TestUnmarshalBareInt(t *testing.T) {
@@ -89,7 +89,7 @@ func TestRoundTripInContainer(t *testing.T) {
 	in := &holder{Unit: &plain{ID: 3}, Ids: []plain{{ID: 1}, {ID: 2}}}
 	b, err := json.Marshal(in)
 	require.NoError(t, err)
-	assert.Equal(t, `{"unit":3,"ids":[1,2]}`, string(b))
+	assert.JSONEq(t, `{"unit":3,"ids":[1,2]}`, string(b))
 
 	var out holder
 	require.NoError(t, json.Unmarshal([]byte(`{"unit":8,"ids":[1,{"id":2,"name":"g"}]}`), &out))

@@ -184,11 +184,12 @@ func auditFoodFix() *cli.Command {
 			if err != nil {
 				return err
 			}
-			if dryRun {
+				switch {
+			case dryRun:
 				fmt.Fprintln(cmd.ErrWriter, "[dry-run] plan for food", id)
-			} else if result.Merged {
+			case result.Merged:
 				fmt.Fprintf(cmd.ErrWriter, "[fix] food %d merged into %d\n", id, result.Collision.ID)
-			} else {
+			default:
 				fmt.Fprintf(cmd.ErrWriter, "[fix] food %d: %q -> %q\n", id, result.OriginalName, result.NewName)
 			}
 			return printJSON(result)

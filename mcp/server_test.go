@@ -361,7 +361,7 @@ func TestAllToolsRespond(t *testing.T) {
 		if isWrite {
 			var body map[string]any
 			require.NoError(t, json.Unmarshal([]byte(resultText(t, res)), &body))
-			require.Truef(t, body["dry_run"] == true, "tool %s should return a dry_run preview", tool.Name)
+			require.Equalf(t, true, body["dry_run"], "tool %s should return a dry_run preview", tool.Name)
 		}
 	}
 }
@@ -383,7 +383,7 @@ func TestRecipeList(t *testing.T) {
 	require.False(t, res.IsError)
 	var page map[string]any
 	require.NoError(t, json.Unmarshal([]byte(resultText(t, res)), &page))
-	require.Equal(t, float64(2), page["count"])
+	require.InDelta(t, 2.0, page["count"], 0.001)
 	results := page["results"].([]any)
 	require.Len(t, results, 2)
 	require.Equal(t, "Pancakes", results[0].(map[string]any)["name"])
@@ -423,8 +423,8 @@ func TestRecipeListJQ(t *testing.T) {
 	res := callTool(t, c, "recipe_list", map[string]any{"jq": ".results[].name"})
 	require.False(t, res.IsError)
 	text := resultText(t, res)
-	require.True(t, strings.Contains(text, "Pancakes"), "got %q", text)
-	require.True(t, strings.Contains(text, "Toast"), "got %q", text)
+	require.Containsf(t, text, "Pancakes", "got %q", text)
+	require.Containsf(t, text, "Toast", "got %q", text)
 }
 
 func TestRecipeListAll(t *testing.T) {

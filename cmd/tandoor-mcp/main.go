@@ -133,7 +133,9 @@ func main() {
 					return err
 				case sig := <-stop:
 					log.Printf("tandoor-mcp: received %s, shutting down", sig)
-					shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					// The app context is still live inside the action, so the
+					// shutdown inherits it instead of starting from Background.
+					shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 					defer cancel()
 					return httpServer.Shutdown(shutdownCtx)
 				}

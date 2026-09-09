@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/itchyny/gojq"
@@ -48,7 +49,8 @@ func jsonResultJQ(ctx context.Context, req mcpgo.CallToolRequest, v any) (*mcpgo
 // keep their HTTP status and message so the model can diagnose
 // (404 vs 400 vs 500).
 func errResult(err error) *mcpgo.CallToolResult {
-	if te, ok := err.(*tandoor.TandoorError); ok {
+	var te *tandoor.TandoorError
+	if errors.As(err, &te) {
 		return mcpgo.NewToolResultError(te.Error())
 	}
 	return mcpgo.NewToolResultError(err.Error())
@@ -138,7 +140,8 @@ func applyJQ(ctx context.Context, filter string, v any) (string, error) {
 			break
 		}
 		if err, ok := v.(error); ok {
-			if hErr, ok := err.(*gojq.HaltError); ok && hErr.Value() == nil {
+			var hErr *gojq.HaltError
+			if errors.As(err, &hErr) && hErr.Value() == nil {
 				break
 			}
 			return "", fmt.Errorf("jq: %w", err)

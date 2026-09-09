@@ -150,7 +150,8 @@ func applyJQ(ctx context.Context, filter string, data []byte) ([]byte, error) {
 			break
 		}
 		if err, ok := v.(error); ok {
-			if hErr, ok := err.(*gojq.HaltError); ok && hErr.Value() == nil {
+			var hErr *gojq.HaltError
+			if errors.As(err, &hErr) && hErr.Value() == nil {
 				break
 			}
 			return nil, fmt.Errorf("jq filter failed: %w", err)

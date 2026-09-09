@@ -40,7 +40,7 @@ func dryRunParam() mcpgo.ToolOption {
 // method is HTTP (POST/PUT/PATCH) and path is the service path without a
 // leading slash. When dry_run is set, the request preview is returned
 // instead of calling exec.
-func runWrite(ctx context.Context, req mcpgo.CallToolRequest, method, path string, body any, exec func() (any, error)) (*mcpgo.CallToolResult, error) {
+func runWrite(_ context.Context, req mcpgo.CallToolRequest, method, path string, body any, exec func() (any, error)) (*mcpgo.CallToolResult, error) {
 	if req.GetBool("dry_run", false) {
 		return jsonResult(map[string]any{
 			"dry_run": true,
@@ -57,7 +57,7 @@ func runWrite(ctx context.Context, req mcpgo.CallToolRequest, method, path strin
 }
 
 // deleteResult handles delete tools (no body, 204 response).
-func deleteResult(ctx context.Context, req mcpgo.CallToolRequest, path string, exec func() error) (*mcpgo.CallToolResult, error) {
+func deleteResult(_ context.Context, req mcpgo.CallToolRequest, path string, exec func() error) (*mcpgo.CallToolResult, error) {
 	if req.GetBool("dry_run", false) {
 		return jsonResult(map[string]any{"dry_run": true, "method": "DELETE", "path": "/" + path}), nil
 	}

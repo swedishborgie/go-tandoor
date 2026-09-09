@@ -189,7 +189,7 @@ func applyPer100(ctx context.Context, c *tandoor.Client, f *food.Food, amount fl
 		} else if id, err := findUnitIDByName(ctx, c, "gram"); err == nil {
 			unitID = id
 		} else {
-			return nil, fmt.Errorf("cannot resolve per-100 unit: food has no properties_food_unit and no unit named %q found (%v) — set per_100_unit_id", "gram", err)
+			return nil, fmt.Errorf("cannot resolve per-100 unit: food has no properties_food_unit and no unit named %q found (%w) — set per_100_unit_id", "gram", err)
 		}
 	}
 	f.PropertiesFoodAmount = &amount
