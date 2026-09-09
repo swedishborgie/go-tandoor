@@ -119,14 +119,13 @@ func registerRecipeTools(d *deps) []toolDef {
 	recCreate := mcpgo.NewTool("recipe_create",
 		mcpgo.WithDescription("Create a recipe from a raw Tandoor recipe payload. Returns the created recipe."),
 		dataParam,
-		dryRunParam(),
 	)
 	recCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		data, err := recipeData(req)
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "POST", "api/recipe/", data, func() (any, error) {
+		return runWrite(func() (any, error) {
 			var out any
 			if err := d.Tandoor.DoJSON(ctx, "POST", "api/recipe/", data, &out); err != nil {
 				return nil, err
@@ -139,7 +138,6 @@ func registerRecipeTools(d *deps) []toolDef {
 		mcpgo.WithDescription("Replace a recipe with the given data (full replacement; use recipe_patch for partial changes). Returns the updated recipe."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Recipe ID")),
 		dataParam,
-		dryRunParam(),
 	)
 	recUpdateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -151,7 +149,7 @@ func registerRecipeTools(d *deps) []toolDef {
 			return errResult(err), nil
 		}
 		path := fmt.Sprintf("api/recipe/%d/", id)
-		return runWrite(ctx, req, "PUT", path, data, func() (any, error) {
+		return runWrite(func() (any, error) {
 			var out any
 			if err := d.Tandoor.DoJSON(ctx, "PUT", path, data, &out); err != nil {
 				return nil, err
@@ -164,7 +162,6 @@ func registerRecipeTools(d *deps) []toolDef {
 		mcpgo.WithDescription("Partially update a recipe. Only fields present in data change."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Recipe ID")),
 		dataParam,
-		dryRunParam(),
 	)
 	recPatchHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -176,7 +173,7 @@ func registerRecipeTools(d *deps) []toolDef {
 			return errResult(err), nil
 		}
 		path := fmt.Sprintf("api/recipe/%d/", id)
-		return runWrite(ctx, req, "PATCH", path, data, func() (any, error) {
+		return runWrite(func() (any, error) {
 			var out any
 			if err := d.Tandoor.DoJSON(ctx, "PATCH", path, data, &out); err != nil {
 				return nil, err
@@ -188,14 +185,13 @@ func registerRecipeTools(d *deps) []toolDef {
 	recDelete := mcpgo.NewTool("recipe_delete",
 		mcpgo.WithDescription("Delete a recipe."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Recipe ID")),
-		dryRunParam(),
 	)
 	recDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/recipe/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/recipe/%d/", id), func() error {
 			return d.Tandoor.Recipes().Delete(ctx, id)
 		})
 	}
@@ -209,7 +205,6 @@ func registerRecipeTools(d *deps) []toolDef {
 		mcpgo.WithBoolean("keywords_remove_all", mcpgo.Description("Remove all keywords")),
 		mcpgo.WithInteger("working_time", mcpgo.Description("Working time in minutes")),
 		mcpgo.WithInteger("waiting_time", mcpgo.Description("Waiting time in minutes")),
-		dryRunParam(),
 	)
 	recBatchUpdateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		recipes, err := req.RequireIntSlice("recipes")
@@ -235,7 +230,7 @@ func registerRecipeTools(d *deps) []toolDef {
 		if v, err := req.RequireInt("waiting_time"); err == nil {
 			update.WaitingTime = &v
 		}
-		return runWrite(ctx, req, "PUT", "api/recipe/batch_update/", update, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Recipes().BatchUpdate(ctx, update)
 		})
 	}
@@ -246,7 +241,6 @@ func registerRecipeTools(d *deps) []toolDef {
 		mcpgo.WithInteger("servings", mcpgo.Description("Servings (default 1; 0 with list_recipe deletes the entry)")),
 		mcpgo.WithInteger("list_recipe", mcpgo.Description("Existing shopping list recipe ID to edit")),
 		mcpgo.WithArray("ingredients", mcpgo.WithIntegerItems(), mcpgo.Description("Recipe ingredient IDs to include (all if omitted)")),
-		dryRunParam(),
 	)
 	recAddToShoppingHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -263,7 +257,7 @@ func registerRecipeTools(d *deps) []toolDef {
 		if v, err := req.RequireIntSlice("ingredients"); err == nil {
 			update.Ingredients = v
 		}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/recipe/%d/shopping/", id), update, func() (any, error) {
+		return runWrite(func() (any, error) {
 			if err := d.Tandoor.Recipes().AddToShopping(ctx, id, update); err != nil {
 				return nil, err
 			}
@@ -276,7 +270,6 @@ func registerRecipeTools(d *deps) []toolDef {
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Recipe ID")),
 		mcpgo.WithString("image_url", mcpgo.Description("Image URL to fetch (or image_base64; exactly one required)")),
 		mcpgo.WithString("image_base64", mcpgo.Description("Base64-encoded image data (or image_url; exactly one required)")),
-		dryRunParam(),
 	)
 	uploadImageHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -289,7 +282,7 @@ func registerRecipeTools(d *deps) []toolDef {
 			return errResult(fmt.Errorf("exactly one of image_url or image_base64 is required")), nil
 		}
 		img := &recipe.Image{Image: imageB64, ImageURL: imageURL}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/recipe/%d/image/", id), img, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Recipes().UploadImage(ctx, id, img)
 		})
 	}
@@ -297,14 +290,13 @@ func registerRecipeTools(d *deps) []toolDef {
 	aiProps := mcpgo.NewTool("recipe_ai_properties",
 		mcpgo.WithDescription("Trigger server-side AI to generate keywords, servings, and times for a recipe. Requires an AI provider configured on the instance."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Recipe ID")),
-		dryRunParam(),
 	)
 	aiPropsHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "POST", fmt.Sprintf("api/recipe/%d/aiproperties/", id), nil, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Recipes().AiProperties(ctx, id)
 		})
 	}
@@ -312,14 +304,13 @@ func registerRecipeTools(d *deps) []toolDef {
 	delExternal := mcpgo.NewTool("recipe_delete_external",
 		mcpgo.WithDescription("Remove the external file reference from a recipe (keeps the recipe)."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Recipe ID")),
-		dryRunParam(),
 	)
 	delExternalHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "PATCH", fmt.Sprintf("api/recipe/%d/delete_external/", id), nil, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Recipes().DeleteExternal(ctx, id)
 		})
 	}

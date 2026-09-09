@@ -132,7 +132,6 @@ func registerInventoryTools(d *deps) []toolDef {
 		mcpgo.WithString("name", mcpgo.Required(), mcpgo.Description("Location name")),
 		mcpgo.WithBoolean("is_freezer", mcpgo.Description("Whether this is a freezer location")),
 		mcpgo.WithInteger("household_id", mcpgo.Required(), mcpgo.Description("Household ID (see household_list)")),
-		dryRunParam(),
 	)
 	locCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		name, err := req.RequireString("name")
@@ -147,7 +146,7 @@ func registerInventoryTools(d *deps) []toolDef {
 		if v, err := req.RequireBool("is_freezer"); err == nil {
 			loc.IsFreezer = v
 		}
-		return runWrite(ctx, req, "POST", "api/inventory-location/", loc, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.InventoryLocations().Create(ctx, loc)
 		})
 	}
@@ -158,7 +157,6 @@ func registerInventoryTools(d *deps) []toolDef {
 		mcpgo.WithString("name", mcpgo.Required(), mcpgo.Description("Location name")),
 		mcpgo.WithBoolean("is_freezer", mcpgo.Description("Whether this is a freezer location")),
 		mcpgo.WithInteger("household_id", mcpgo.Required(), mcpgo.Description("Household ID")),
-		dryRunParam(),
 	)
 	locUpdateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -177,7 +175,7 @@ func registerInventoryTools(d *deps) []toolDef {
 		if v, err := req.RequireBool("is_freezer"); err == nil {
 			loc.IsFreezer = v
 		}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/inventory-location/%d/", id), loc, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.InventoryLocations().Update(ctx, loc)
 		})
 	}
@@ -188,7 +186,6 @@ func registerInventoryTools(d *deps) []toolDef {
 		mcpgo.WithString("name", mcpgo.Description("Location name")),
 		mcpgo.WithBoolean("is_freezer", mcpgo.Description("Whether this is a freezer location")),
 		mcpgo.WithInteger("household_id", mcpgo.Description("Household ID")),
-		dryRunParam(),
 	)
 	locPatchHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -205,7 +202,7 @@ func registerInventoryTools(d *deps) []toolDef {
 		if v, err := req.RequireInt("household_id"); err == nil {
 			loc.Household = &v
 		}
-		return runWrite(ctx, req, "PATCH", fmt.Sprintf("api/inventory-location/%d/", id), loc, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.InventoryLocations().Patch(ctx, loc)
 		})
 	}
@@ -213,14 +210,13 @@ func registerInventoryTools(d *deps) []toolDef {
 	locDelete := mcpgo.NewTool("inventory_location_delete",
 		mcpgo.WithDescription("Delete an inventory location. Fails if entries still reference it."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Location ID")),
-		dryRunParam(),
 	)
 	locDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/inventory-location/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/inventory-location/%d/", id), func() error {
 			return d.Tandoor.InventoryLocations().Delete(ctx, id)
 		})
 	}
@@ -265,7 +261,6 @@ func registerInventoryTools(d *deps) []toolDef {
 		mcpgo.WithDescription("Create an inventory entry (item on hand). Returns the created entry."),
 		mcpgo.WithInteger("food_id", mcpgo.Required(), mcpgo.Description("Food ID")),
 		mcpgo.WithInteger("location_id", mcpgo.Required(), mcpgo.Description("Inventory location ID")),
-		dryRunParam(),
 	}, entryWriteFields...)
 	einCreate := mcpgo.NewTool("inventory_entry_create", einCreateOpts...)
 	einCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -278,7 +273,7 @@ func registerInventoryTools(d *deps) []toolDef {
 			return errResult(err), nil
 		}
 		e.Location = &inventory.Location{ID: locationID}
-		return runWrite(ctx, req, "POST", "api/inventory-entry/", e, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.InventoryEntries().Create(ctx, e)
 		})
 	}
@@ -288,7 +283,6 @@ func registerInventoryTools(d *deps) []toolDef {
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Entry ID")),
 		mcpgo.WithInteger("food_id", mcpgo.Required(), mcpgo.Description("Food ID")),
 		mcpgo.WithInteger("location_id", mcpgo.Required(), mcpgo.Description("Inventory location ID")),
-		dryRunParam(),
 	}, entryWriteFields...)
 	einUpdate := mcpgo.NewTool("inventory_entry_update", einUpdateOpts...)
 	einUpdateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -305,7 +299,7 @@ func registerInventoryTools(d *deps) []toolDef {
 			return errResult(err), nil
 		}
 		e.Location = &inventory.Location{ID: locationID}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/inventory-entry/%d/", id), e, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.InventoryEntries().Update(ctx, e)
 		})
 	}
@@ -313,7 +307,6 @@ func registerInventoryTools(d *deps) []toolDef {
 	einPatchOpts := append([]mcpgo.ToolOption{
 		mcpgo.WithDescription("Partially update an inventory entry. Only provided fields change."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Entry ID")),
-		dryRunParam(),
 	}, entryWriteFields...)
 	einPatch := mcpgo.NewTool("inventory_entry_patch", einPatchOpts...)
 	einPatchHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -328,7 +321,7 @@ func registerInventoryTools(d *deps) []toolDef {
 		if locationID, err := req.RequireInt("location_id"); err == nil {
 			e.Location = &inventory.Location{ID: locationID}
 		}
-		return runWrite(ctx, req, "PATCH", fmt.Sprintf("api/inventory-entry/%d/", id), e, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.InventoryEntries().Patch(ctx, e)
 		})
 	}
@@ -336,14 +329,13 @@ func registerInventoryTools(d *deps) []toolDef {
 	einDelete := mcpgo.NewTool("inventory_entry_delete",
 		mcpgo.WithDescription("Delete an inventory entry."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Entry ID")),
-		dryRunParam(),
 	)
 	einDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/inventory-entry/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/inventory-entry/%d/", id), func() error {
 			return d.Tandoor.InventoryEntries().Delete(ctx, id)
 		})
 	}

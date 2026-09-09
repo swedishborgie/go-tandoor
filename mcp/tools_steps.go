@@ -95,14 +95,13 @@ func registerStepTools(d *deps) []toolDef {
 		mcpgo.WithInteger("time", mcpgo.Description("Step time in minutes")),
 		mcpgo.WithInteger("order", mcpgo.Description("Order within the recipe")),
 		mcpgo.WithBoolean("show_as_header", mcpgo.Description("Render the step name as a header")),
-		dryRunParam(),
 	)
 	stCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		s, err := buildStep(0, req, true)
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "POST", "api/step/", s, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Steps().Create(ctx, s)
 		})
 	}
@@ -110,7 +109,6 @@ func registerStepTools(d *deps) []toolDef {
 	stUpdateOpts := append([]mcpgo.ToolOption{
 		mcpgo.WithDescription("Update a step (full replacement). Returns the updated step."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Step ID")),
-		dryRunParam(),
 	}, stepWriteFields...)
 	stUpdate := mcpgo.NewTool("step_update", stUpdateOpts...)
 	stUpdateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -122,7 +120,7 @@ func registerStepTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/step/%d/", id), s, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Steps().Update(ctx, s)
 		})
 	}
@@ -130,7 +128,6 @@ func registerStepTools(d *deps) []toolDef {
 	stPatchOpts := append([]mcpgo.ToolOption{
 		mcpgo.WithDescription("Partially update a step. Only provided fields change."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Step ID")),
-		dryRunParam(),
 	}, stepWriteFields...)
 	stPatch := mcpgo.NewTool("step_patch", stPatchOpts...)
 	stPatchHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -142,7 +139,7 @@ func registerStepTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "PATCH", fmt.Sprintf("api/step/%d/", id), s, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Steps().Patch(ctx, s)
 		})
 	}
@@ -150,14 +147,13 @@ func registerStepTools(d *deps) []toolDef {
 	stDelete := mcpgo.NewTool("step_delete",
 		mcpgo.WithDescription("Delete a step (removes it from its recipe)."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Step ID")),
-		dryRunParam(),
 	)
 	stDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/step/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/step/%d/", id), func() error {
 			return d.Tandoor.Steps().Delete(ctx, id)
 		})
 	}

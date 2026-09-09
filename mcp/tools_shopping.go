@@ -104,7 +104,6 @@ func registerShoppingTools(d *deps) []toolDef {
 		mcpgo.WithString("name", mcpgo.Required(), mcpgo.Description("List name")),
 		mcpgo.WithString("description", mcpgo.Description("List description")),
 		mcpgo.WithString("color", mcpgo.Description("List color (e.g. #3498db)")),
-		dryRunParam(),
 	)
 	listCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		name, err := req.RequireString("name")
@@ -112,7 +111,7 @@ func registerShoppingTools(d *deps) []toolDef {
 			return errResult(err), nil
 		}
 		sl := &shopping.List{Name: name, Description: req.GetString("description", ""), Color: req.GetString("color", "")}
-		return runWrite(ctx, req, "POST", "api/shopping-list/", sl, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.ShoppingLists().Create(ctx, sl)
 		})
 	}
@@ -123,7 +122,6 @@ func registerShoppingTools(d *deps) []toolDef {
 		mcpgo.WithString("name", mcpgo.Required(), mcpgo.Description("List name")),
 		mcpgo.WithString("description", mcpgo.Description("List description")),
 		mcpgo.WithString("color", mcpgo.Description("List color")),
-		dryRunParam(),
 	)
 	listUpdateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -135,7 +133,7 @@ func registerShoppingTools(d *deps) []toolDef {
 			return errResult(err), nil
 		}
 		sl := &shopping.List{ID: id, Name: name, Description: req.GetString("description", ""), Color: req.GetString("color", "")}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/shopping-list/%d/", id), sl, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.ShoppingLists().Update(ctx, sl)
 		})
 	}
@@ -143,14 +141,13 @@ func registerShoppingTools(d *deps) []toolDef {
 	listDelete := mcpgo.NewTool("shopping_list_delete",
 		mcpgo.WithDescription("Delete a shopping list (its entries are removed)."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("List ID")),
-		dryRunParam(),
 	)
 	listDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/shopping-list/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/shopping-list/%d/", id), func() error {
 			return d.Tandoor.ShoppingLists().Delete(ctx, id)
 		})
 	}
@@ -193,7 +190,6 @@ func registerShoppingTools(d *deps) []toolDef {
 
 	einCreateOpts := append([]mcpgo.ToolOption{
 		mcpgo.WithDescription("Create a shopping list entry. Returns the created entry."),
-		dryRunParam(),
 	}, entryWriteFields...)
 	einCreate := mcpgo.NewTool("shopping_entry_create", einCreateOpts...)
 	einCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -201,7 +197,7 @@ func registerShoppingTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "POST", "api/shopping-list-entry/", e, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.ShoppingEntries().Create(ctx, e)
 		})
 	}
@@ -209,7 +205,6 @@ func registerShoppingTools(d *deps) []toolDef {
 	einUpdateOpts := append([]mcpgo.ToolOption{
 		mcpgo.WithDescription("Update a shopping list entry (full replacement). Returns the updated entry."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Entry ID")),
-		dryRunParam(),
 	}, entryWriteFields...)
 	einUpdate := mcpgo.NewTool("shopping_entry_update", einUpdateOpts...)
 	einUpdateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -221,7 +216,7 @@ func registerShoppingTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/shopping-list-entry/%d/", id), e, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.ShoppingEntries().Update(ctx, e)
 		})
 	}
@@ -229,7 +224,6 @@ func registerShoppingTools(d *deps) []toolDef {
 	einPatchOpts := append([]mcpgo.ToolOption{
 		mcpgo.WithDescription("Partially update a shopping list entry. Only provided fields change."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Entry ID")),
-		dryRunParam(),
 	}, entryWriteFields...)
 	einPatch := mcpgo.NewTool("shopping_entry_patch", einPatchOpts...)
 	einPatchHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -241,7 +235,7 @@ func registerShoppingTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "PATCH", fmt.Sprintf("api/shopping-list-entry/%d/", id), e, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.ShoppingEntries().Patch(ctx, e)
 		})
 	}
@@ -249,14 +243,13 @@ func registerShoppingTools(d *deps) []toolDef {
 	einDelete := mcpgo.NewTool("shopping_entry_delete",
 		mcpgo.WithDescription("Delete a shopping list entry."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Entry ID")),
-		dryRunParam(),
 	)
 	einDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/shopping-list-entry/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/shopping-list-entry/%d/", id), func() error {
 			return d.Tandoor.ShoppingEntries().Delete(ctx, id)
 		})
 	}
@@ -269,7 +262,6 @@ func registerShoppingTools(d *deps) []toolDef {
 		mcpgo.WithArray("lists_remove", mcpgo.WithIntegerItems(), mcpgo.Description("List IDs to remove from")),
 		mcpgo.WithArray("lists_set", mcpgo.WithIntegerItems(), mcpgo.Description("List IDs to set (replaces all)")),
 		mcpgo.WithBoolean("lists_remove_all", mcpgo.Description("Remove entries from all lists")),
-		dryRunParam(),
 	)
 	einBulkUpdateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		ids, err := req.RequireIntSlice("ids")
@@ -292,7 +284,7 @@ func registerShoppingTools(d *deps) []toolDef {
 		if v, err := req.RequireBool("lists_remove_all"); err == nil {
 			bulk.ListsRemoveAll = v
 		}
-		return runWrite(ctx, req, "POST", "api/shopping-list-entry/bulk_update/", bulk, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.ShoppingEntries().BulkUpdate(ctx, bulk)
 		})
 	}
@@ -303,7 +295,6 @@ func registerShoppingTools(d *deps) []toolDef {
 		mcpgo.WithInteger("list_id", mcpgo.Required(), mcpgo.Description("Shopping list ID")),
 		mcpgo.WithInteger("recipe_id", mcpgo.Required(), mcpgo.Description("Recipe ID")),
 		mcpgo.WithNumber("servings", mcpgo.Description("Target servings (defaults to the recipe's servings)")),
-		dryRunParam(),
 	)
 	addRecipeHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		listID, err := req.RequireInt("list_id")
@@ -342,14 +333,6 @@ func registerShoppingTools(d *deps) []toolDef {
 			entries = []shopping.ListEntryCreate{}
 		}
 
-		steps := []map[string]any{
-			{"method": "POST", "path": fmt.Sprintf("api/shopping-list-recipe/%d/", 0), "body": map[string]any{"recipe": recipeID, "servings": servings}},
-			{"method": "POST", "path": "api/shopping-list-recipe/{id}/bulk_create_entries/", "body": map[string]any{"entries": entries, "shopping_lists_ids": []int{listID}}},
-		}
-		if req.GetBool("dry_run", false) {
-			return jsonResult(map[string]any{"dry_run": true, "steps": steps}), nil
-		}
-
 		var slr shopping.ListRecipe
 		if err := d.Tandoor.DoJSON(ctx, "POST", "api/shopping-list-recipe/", map[string]any{"recipe": recipeID, "servings": servings}, &slr); err != nil {
 			return errResult(err), nil
@@ -363,12 +346,11 @@ func registerShoppingTools(d *deps) []toolDef {
 
 	// --- composite: create entries from a recipe into shopping lists ---
 	createEntries := mcpgo.NewTool("shopping_recipe_create_entries",
-		mcpgo.WithDescription("Create shopping entries from a recipe's ingredients and attach them to shopping lists (composite: derives scaled entries, creates a shopping list recipe when needed). Pass shopping_list_recipe_id to reuse an existing link, or recipe_id to create a new one. Use dry_run to preview."),
+		mcpgo.WithDescription("Create shopping entries from a recipe's ingredients and attach them to shopping lists (composite: derives scaled entries, creates a shopping list recipe when needed). Pass shopping_list_recipe_id to reuse an existing link, or recipe_id to create a new one."),
 		mcpgo.WithInteger("shopping_list_recipe_id", mcpgo.Description("Existing shopping list recipe ID to create entries for (or recipe_id; exactly one required)")),
 		mcpgo.WithInteger("recipe_id", mcpgo.Description("Recipe ID to build a new shopping list recipe from (or shopping_list_recipe_id; exactly one required)")),
 		mcpgo.WithNumber("servings", mcpgo.Description("Target servings, amounts scale vs the recipe's servings (default: recipe's servings)")),
 		mcpgo.WithArray("shopping_list_ids", mcpgo.WithIntegerItems(), mcpgo.Description("Shopping lists to attach the entries to (default: each food's default lists)")),
-		dryRunParam(),
 	)
 	createEntriesHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		slrID := req.GetInt("shopping_list_recipe_id", 0)
@@ -420,31 +402,12 @@ func registerShoppingTools(d *deps) []toolDef {
 		listIDs := req.GetIntSlice("shopping_list_ids", nil)
 
 		body := shopping.ListEntryBulkCreate{Entries: entries, ListIDs: listIDs}
-		newSlr := slrID == 0
-		if newSlr {
-			// dry_run: show both the link creation and the bulk entry create.
-			if req.GetBool("dry_run", false) {
-				return jsonResult(map[string]any{
-					"dry_run": true,
-					"steps": []map[string]any{
-						{"method": "POST", "path": "api/shopping-list-recipe/", "body": map[string]any{"recipe": recipeID, "servings": servings}},
-						{"method": "POST", "path": "api/shopping-list-recipe/{id}/bulk_create_entries/", "body": body},
-					},
-				}), nil
-			}
+		if slrID == 0 {
 			var slr shopping.ListRecipe
 			if err := d.Tandoor.DoJSON(ctx, "POST", "api/shopping-list-recipe/", map[string]any{"recipe": recipeID, "servings": servings}, &slr); err != nil {
 				return errResult(err), nil
 			}
 			slrID = slr.ID
-		}
-		if req.GetBool("dry_run", false) {
-			return jsonResult(map[string]any{
-				"dry_run": true,
-				"steps": []map[string]any{
-					{"method": "POST", "path": fmt.Sprintf("api/shopping-list-recipe/%d/bulk_create_entries/", slrID), "body": body},
-				},
-			}), nil
 		}
 		result, err := d.Tandoor.ShoppingRecipes().BulkCreateEntries(ctx, slrID, &body)
 		if err != nil {

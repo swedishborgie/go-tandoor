@@ -1,7 +1,6 @@
 package mcp
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -31,24 +30,9 @@ func usersFromIDs(ids []int) []recipe.User {
 	return users
 }
 
-// dryRunParam is the shared schema option for all write tools.
-func dryRunParam() mcpgo.ToolOption {
-	return mcpgo.WithBoolean("dry_run", mcpgo.Description("Return the exact request (method, path, body) that would be sent, without sending it"))
-}
-
-// runWrite executes a write tool call, honoring the dry_run contract.
-// method is HTTP (POST/PUT/PATCH) and path is the service path without a
-// leading slash. When dry_run is set, the request preview is returned
-// instead of calling exec.
-func runWrite(_ context.Context, req mcpgo.CallToolRequest, method, path string, body any, exec func() (any, error)) (*mcpgo.CallToolResult, error) {
-	if req.GetBool("dry_run", false) {
-		return jsonResult(map[string]any{
-			"dry_run": true,
-			"method":  method,
-			"path":    "/" + path,
-			"body":    body,
-		}), nil
-	}
+// runWrite executes a write tool call, wrapping the outcome: errors become
+// tool errors, results are JSON-encoded.
+func runWrite(exec func() (any, error)) (*mcpgo.CallToolResult, error) {
 	out, err := exec()
 	if err != nil {
 		return errResult(err), nil
@@ -57,10 +41,7 @@ func runWrite(_ context.Context, req mcpgo.CallToolRequest, method, path string,
 }
 
 // deleteResult handles delete tools (no body, 204 response).
-func deleteResult(_ context.Context, req mcpgo.CallToolRequest, path string, exec func() error) (*mcpgo.CallToolResult, error) {
-	if req.GetBool("dry_run", false) {
-		return jsonResult(map[string]any{"dry_run": true, "method": "DELETE", "path": "/" + path}), nil
-	}
+func deleteResult(path string, exec func() error) (*mcpgo.CallToolResult, error) {
 	if err := exec(); err != nil {
 		return errResult(err), nil
 	}

@@ -11,7 +11,7 @@ meal plans, and food data — built for humans *and* AI agents.
   batch operations, JSON output (`--jq` filters, `--output-file`), dry-run mode for writes,
   food-data audit tooling, and a client for the USDA FoodData Central (FDC) API.
 - **MCP server** (`tandoor-mcp`): a [Model Context Protocol](https://modelcontextprotocol.io/) server
-  exposing the API as ~200 tools for AI agents, with optional parameters, `dry_run` on writes,
+  exposing the API as ~200 tools for AI agents, with optional parameters,
   a read-only mode, and stdio or streamable-HTTP transports. Embeddable via the `mcp` package.
 
 ## Installation
@@ -142,7 +142,7 @@ logs, books, imports, spaces/users, FDC, and audit composites). Design notes:
   with a single argument.
 - **`jq` on every read tool** (built-in gojq) to project fields and keep responses small.
 - **`all=true`** on paginated list tools auto-paginates and returns a flat array.
-- **Writes take `dry_run`** (default `false`) to preview the exact request without sending it.
+- **Write tools perform real writes**; destructive ones carry the `destructive` annotation so clients can gate them.
 - **Read-only mode** (`--read-only`) registers read tools only; write tools are not exposed.
 - **Tool filter** (`--tools`) allows `name` / `prefix_*` and denies with `-name`.
 
@@ -253,7 +253,7 @@ matches (the test fails when the README drifts).
 | `food_batch_update` | Batch update foods: add, remove, or replace substitutes for a set of foods at once. |
 | `food_create` | Create a food. Returns the created food. |
 | `food_delete` | Delete a food. Fails if the food is still in use. |
-| `food_ensure` | Ensure foods exist by exact name, creating missing ones (composite of food_list + food_create + FDC candidate lookup). Use dry_run to preview without writing. |
+| `food_ensure` | Ensure foods exist by exact name, creating missing ones (composite of food_list + food_create + FDC candidate lookup). With force_create=false it only reports which names exist, match, or would be created. |
 | `food_fdc_import` | Pull USDA FDC data into a food that already has an fdc_id set (populates properties and conversions server-side). |
 | `food_get` | Get a single food by ID (includes category, unit, and properties). |
 | `food_list` | List foods. Use query for fuzzy name search, name_exact for a case-insensitive exact name, or names for a batch exact lookup returning a {name: food\|null} map. Filters: category_id, unit_id. Use all=true for the full set; jq projects fields to keep output small. |
@@ -297,7 +297,7 @@ matches (the test fails when the README drifts).
 
 | Tool | Description |
 | --- | --- |
-| `property_attach` | Attach a nutrient property to a food per 100 g (composite: resolves the food, sets the per-100 unit, creates or updates the property). Idempotent — re-running updates the existing property. Use dry_run to preview. |
+| `property_attach` | Attach a nutrient property to a food per 100 g (composite: resolves the food, sets the per-100 unit, creates or updates the property). Idempotent — re-running updates the existing property. |
 | `property_create` | Create a property value. Returns the created property. Property type IDs are instance-specific — use property_type_list first. |
 | `property_delete` | Delete a property value. |
 | `property_get` | Get a single property value by ID. |
@@ -341,14 +341,14 @@ matches (the test fails when the README drifts).
 | `shopping_list_get` | Get a single shopping list by ID (includes its entries and recipes). |
 | `shopping_list_list` | List shopping lists. Use all=true for the full set; jq projects fields to keep output small. |
 | `shopping_list_update` | Update a shopping list (full replacement). Returns the updated list. |
-| `shopping_recipe_create_entries` | Create shopping entries from a recipe's ingredients and attach them to shopping lists (composite: derives scaled entries, creates a shopping list recipe when needed). Pass shopping_list_recipe_id to reuse an existing link, or recipe_id to create a new one. Use dry_run to preview. |
+| `shopping_recipe_create_entries` | Create shopping entries from a recipe's ingredients and attach them to shopping lists (composite: derives scaled entries, creates a shopping list recipe when needed). Pass shopping_list_recipe_id to reuse an existing link, or recipe_id to create a new one. |
 | `shopping_recipe_list` | List shopping list recipes (recipes contributing ingredients to shopping lists). Use all=true for the full set; jq projects fields to keep output small. |
 
 #### Meal Plans
 
 | Tool | Description |
 | --- | --- |
-| `meal_plan_auto_plan` | Auto-generate meal plans for a date range by picking recipes matching keywords. Use dry_run to preview the request body. |
+| `meal_plan_auto_plan` | Auto-generate meal plans for a date range; Tandoor picks the recipes matching the keywords server-side. |
 | `meal_plan_create` | Create a meal plan entry. Returns the created entry. Meal type IDs are instance-specific — use meal_type_list first. |
 | `meal_plan_delete` | Delete a meal plan entry. |
 | `meal_plan_get` | Get a single meal plan entry by ID. |
@@ -498,7 +498,8 @@ matches (the test fails when the README drifts).
 
 | Tool | Description |
 | --- | --- |
-| `food_audit_fix` | Rename a food to its normalized canonical name (Title Case, prep words stripped). On a name collision it merges into the existing food unless merge=false. Use dry_run first to preview. |
+| `food_audit_fix` | Rename a food to its normalized canonical name (Title Case, prep words stripped). On a name collision it merges into the existing food unless merge=false. Use food_audit_fix_preview to see the plan first. |
+| `food_audit_fix_preview` | Preview the food_audit_fix plan without writing: normalized name, alternatives, and the collision/merge decision. Read-only. |
 | `food_audit_inspect` | Deep-dive on one food: details, ingredient usage, naming issues, suggested canonical name, and FDC candidates when the food has no FDC ID. Read-only. |
 | `food_find_duplicates` | Scan all foods and group names that are likely duplicates (normalized Jaccard word similarity). Read-only. |
 

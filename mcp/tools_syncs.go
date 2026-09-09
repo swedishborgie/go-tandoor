@@ -67,14 +67,13 @@ func registerSyncTools(d *deps) []toolDef {
 	create := mcpgo.NewTool("sync_create",
 		mcpgo.WithDescription("Create a sync configuration (external recipe sync source). Returns the created sync configuration."),
 		syncDataParam,
-		dryRunParam(),
 	)
 	createHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		data, err := syncData(req)
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "POST", "api/sync/", data, func() (any, error) {
+		return runWrite(func() (any, error) {
 			var out any
 			if err := d.Tandoor.DoJSON(ctx, "POST", "api/sync/", data, &out); err != nil {
 				return nil, err
@@ -87,7 +86,6 @@ func registerSyncTools(d *deps) []toolDef {
 		mcpgo.WithDescription("Replace a sync configuration with the given data (full replacement). Returns the updated sync configuration."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Sync ID")),
 		syncDataParam,
-		dryRunParam(),
 	)
 	updateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -98,7 +96,7 @@ func registerSyncTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/sync/%d/", id), data, func() (any, error) {
+		return runWrite(func() (any, error) {
 			var out any
 			if err := d.Tandoor.DoJSON(ctx, "PUT", fmt.Sprintf("api/sync/%d/", id), data, &out); err != nil {
 				return nil, err
@@ -111,7 +109,6 @@ func registerSyncTools(d *deps) []toolDef {
 		mcpgo.WithDescription("Partially update a sync configuration. Only provided fields change."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Sync ID")),
 		syncDataParam,
-		dryRunParam(),
 	)
 	patchHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -122,7 +119,7 @@ func registerSyncTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "PATCH", fmt.Sprintf("api/sync/%d/", id), data, func() (any, error) {
+		return runWrite(func() (any, error) {
 			var out any
 			if err := d.Tandoor.DoJSON(ctx, "PATCH", fmt.Sprintf("api/sync/%d/", id), data, &out); err != nil {
 				return nil, err
@@ -134,14 +131,13 @@ func registerSyncTools(d *deps) []toolDef {
 	syncDelete := mcpgo.NewTool("sync_delete",
 		mcpgo.WithDescription("Delete a sync configuration."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Sync ID")),
-		dryRunParam(),
 	)
 	syncDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/sync/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/sync/%d/", id), func() error {
 			return d.Tandoor.Syncs().Delete(ctx, id)
 		})
 	}
@@ -149,14 +145,13 @@ func registerSyncTools(d *deps) []toolDef {
 	querySynced := mcpgo.NewTool("sync_query_synced_folder",
 		mcpgo.WithDescription("Trigger a sync run for a sync configuration's folder and return the resulting sync log."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Sync ID")),
-		dryRunParam(),
 	)
 	querySyncedHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "POST", fmt.Sprintf("api/sync/%d/query_synced_folder/", id), nil, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Syncs().QuerySyncedFolder(ctx, id)
 		})
 	}

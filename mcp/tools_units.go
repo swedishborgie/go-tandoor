@@ -93,7 +93,6 @@ func registerUnitTools(d *deps) []toolDef {
 		mcpgo.WithString("plural_name", mcpgo.Description("Plural name (defaults to name)")),
 		mcpgo.WithString("description", mcpgo.Description("Unit description")),
 		mcpgo.WithString("base_unit", mcpgo.Description("Base unit slug (e.g. gram, milliliter)")),
-		dryRunParam(),
 	)
 	unitCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		name, err := req.RequireString("name")
@@ -101,7 +100,7 @@ func registerUnitTools(d *deps) []toolDef {
 			return errResult(err), nil
 		}
 		u := &unit.Unit{Name: name, PluralName: req.GetString("plural_name", ""), Description: req.GetString("description", ""), BaseUnit: req.GetString("base_unit", "")}
-		return runWrite(ctx, req, "POST", "api/unit/", u, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Units().Create(ctx, u)
 		})
 	}
@@ -113,7 +112,6 @@ func registerUnitTools(d *deps) []toolDef {
 		mcpgo.WithString("plural_name", mcpgo.Description("Plural name")),
 		mcpgo.WithString("description", mcpgo.Description("Unit description")),
 		mcpgo.WithString("base_unit", mcpgo.Description("Base unit slug")),
-		dryRunParam(),
 	)
 	unitUpdateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -125,7 +123,7 @@ func registerUnitTools(d *deps) []toolDef {
 			return errResult(err), nil
 		}
 		u := &unit.Unit{ID: id, Name: name, PluralName: req.GetString("plural_name", ""), Description: req.GetString("description", ""), BaseUnit: req.GetString("base_unit", "")}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/unit/%d/", id), u, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Units().Update(ctx, u)
 		})
 	}
@@ -137,7 +135,6 @@ func registerUnitTools(d *deps) []toolDef {
 		mcpgo.WithString("plural_name", mcpgo.Description("Plural name")),
 		mcpgo.WithString("description", mcpgo.Description("Unit description")),
 		mcpgo.WithString("base_unit", mcpgo.Description("Base unit slug")),
-		dryRunParam(),
 	)
 	unitPatchHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -157,7 +154,7 @@ func registerUnitTools(d *deps) []toolDef {
 		if v, err := req.RequireString("base_unit"); err == nil {
 			u.BaseUnit = v
 		}
-		return runWrite(ctx, req, "PATCH", fmt.Sprintf("api/unit/%d/", id), u, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Units().Patch(ctx, u)
 		})
 	}
@@ -165,14 +162,13 @@ func registerUnitTools(d *deps) []toolDef {
 	unitDelete := mcpgo.NewTool("unit_delete",
 		mcpgo.WithDescription("Delete a unit. Fails if the unit is still in use."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Unit ID")),
-		dryRunParam(),
 	)
 	unitDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/unit/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/unit/%d/", id), func() error {
 			return d.Tandoor.Units().Delete(ctx, id)
 		})
 	}
@@ -181,7 +177,6 @@ func registerUnitTools(d *deps) []toolDef {
 		mcpgo.WithDescription("Merge one unit into another: usages re-point to the target, then the source is deleted."),
 		mcpgo.WithInteger("source_id", mcpgo.Required(), mcpgo.Description("Unit to merge (deleted)")),
 		mcpgo.WithInteger("target_id", mcpgo.Required(), mcpgo.Description("Unit to keep")),
-		dryRunParam(),
 	)
 	unitMergeHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		sourceID, err := req.RequireInt("source_id")
@@ -192,7 +187,7 @@ func registerUnitTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/unit/%d/merge/%d/", sourceID, targetID), nil, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Units().Merge(ctx, sourceID, targetID)
 		})
 	}
@@ -237,7 +232,6 @@ func registerUnitTools(d *deps) []toolDef {
 
 	convCreateOpts := append([]mcpgo.ToolOption{
 		mcpgo.WithDescription("Create a unit conversion. Returns the created conversion."),
-		dryRunParam(),
 	}, convRequiredFields...)
 	convCreate := mcpgo.NewTool("unit_conversion_create", convCreateOpts...)
 	convCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -245,7 +239,7 @@ func registerUnitTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "POST", "api/unit-conversion/", conv, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.UnitConversions().Create(ctx, conv)
 		})
 	}
@@ -253,7 +247,6 @@ func registerUnitTools(d *deps) []toolDef {
 	convUpdateOpts := append([]mcpgo.ToolOption{
 		mcpgo.WithDescription("Update a unit conversion. All conversion fields are required by the API. Returns the updated conversion."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Conversion ID")),
-		dryRunParam(),
 	}, convRequiredFields...)
 	convUpdate := mcpgo.NewTool("unit_conversion_update", convUpdateOpts...)
 	convUpdateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -265,7 +258,7 @@ func registerUnitTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/unit-conversion/%d/", id), conv, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.UnitConversions().Update(ctx, conv)
 		})
 	}
@@ -273,7 +266,6 @@ func registerUnitTools(d *deps) []toolDef {
 	convPatchOpts := append([]mcpgo.ToolOption{
 		mcpgo.WithDescription("Partially update a unit conversion. Note: the API still requires base/converted unit and amounts."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Conversion ID")),
-		dryRunParam(),
 	}, convRequiredFields...)
 	convPatch := mcpgo.NewTool("unit_conversion_patch", convPatchOpts...)
 	convPatchHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -285,7 +277,7 @@ func registerUnitTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "PATCH", fmt.Sprintf("api/unit-conversion/%d/", id), conv, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.UnitConversions().Patch(ctx, conv)
 		})
 	}
@@ -293,14 +285,13 @@ func registerUnitTools(d *deps) []toolDef {
 	convDelete := mcpgo.NewTool("unit_conversion_delete",
 		mcpgo.WithDescription("Delete a unit conversion."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Conversion ID")),
-		dryRunParam(),
 	)
 	convDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/unit-conversion/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/unit-conversion/%d/", id), func() error {
 			return d.Tandoor.UnitConversions().Delete(ctx, id)
 		})
 	}

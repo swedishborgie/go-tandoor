@@ -158,7 +158,6 @@ func registerFoodTools(d *deps) []toolDef {
 	foodCreateOpts := append([]mcpgo.ToolOption{
 		mcpgo.WithDescription("Create a food. Returns the created food."),
 		mcpgo.WithString("name", mcpgo.Required(), mcpgo.Description("Food name")),
-		dryRunParam(),
 	}, foodWriteFields...)
 	foodCreate := mcpgo.NewTool("food_create", foodCreateOpts...)
 	foodCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -171,7 +170,7 @@ func registerFoodTools(d *deps) []toolDef {
 			return errResult(err), nil
 		}
 		f.Name = name
-		return runWrite(ctx, req, "POST", "api/food/", f, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Foods().Create(ctx, f)
 		})
 	}
@@ -180,7 +179,6 @@ func registerFoodTools(d *deps) []toolDef {
 		mcpgo.WithDescription("Update a food (full replacement). Returns the updated food."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Food ID")),
 		mcpgo.WithString("name", mcpgo.Required(), mcpgo.Description("Food name")),
-		dryRunParam(),
 	}, foodWriteFields...)
 	foodUpdate := mcpgo.NewTool("food_update", foodUpdateOpts...)
 	foodUpdateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -197,7 +195,7 @@ func registerFoodTools(d *deps) []toolDef {
 			return errResult(err), nil
 		}
 		f.Name = name
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/food/%d/", id), f, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Foods().Update(ctx, f)
 		})
 	}
@@ -205,7 +203,6 @@ func registerFoodTools(d *deps) []toolDef {
 	foodPatchOpts := append([]mcpgo.ToolOption{
 		mcpgo.WithDescription("Partially update a food. Only provided fields change."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Food ID")),
-		dryRunParam(),
 	}, foodWriteFields...)
 	foodPatch := mcpgo.NewTool("food_patch", foodPatchOpts...)
 	foodPatchHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -217,7 +214,7 @@ func registerFoodTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "PATCH", fmt.Sprintf("api/food/%d/", id), f, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Foods().Patch(ctx, f)
 		})
 	}
@@ -225,14 +222,13 @@ func registerFoodTools(d *deps) []toolDef {
 	foodDelete := mcpgo.NewTool("food_delete",
 		mcpgo.WithDescription("Delete a food. Fails if the food is still in use."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Food ID")),
-		dryRunParam(),
 	)
 	foodDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/food/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/food/%d/", id), func() error {
 			return d.Tandoor.Foods().Delete(ctx, id)
 		})
 	}
@@ -241,7 +237,6 @@ func registerFoodTools(d *deps) []toolDef {
 		mcpgo.WithDescription("Merge one food into another: usages re-point to the target, then the source is deleted."),
 		mcpgo.WithInteger("source_id", mcpgo.Required(), mcpgo.Description("Food to merge (deleted)")),
 		mcpgo.WithInteger("target_id", mcpgo.Required(), mcpgo.Description("Food to keep")),
-		dryRunParam(),
 	)
 	foodMergeHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		sourceID, err := req.RequireInt("source_id")
@@ -252,7 +247,7 @@ func registerFoodTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/food/%d/merge/%d/", sourceID, targetID), nil, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Foods().Merge(ctx, sourceID, targetID)
 		})
 	}
@@ -261,7 +256,6 @@ func registerFoodTools(d *deps) []toolDef {
 		mcpgo.WithDescription("Move a food under a new parent in the food tree."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Food ID")),
 		mcpgo.WithInteger("parent_id", mcpgo.Required(), mcpgo.Description("New parent food ID (0 for top level)")),
-		dryRunParam(),
 	)
 	foodMoveHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -272,7 +266,7 @@ func registerFoodTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/food/%d/move/%d/", id, parentID), nil, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Foods().Move(ctx, id, parentID)
 		})
 	}
@@ -283,7 +277,6 @@ func registerFoodTools(d *deps) []toolDef {
 		mcpgo.WithArray("substitute_add", mcpgo.WithIntegerItems(), mcpgo.Description("Substitute food IDs to add")),
 		mcpgo.WithArray("substitute_remove", mcpgo.WithIntegerItems(), mcpgo.Description("Substitute food IDs to remove")),
 		mcpgo.WithArray("substitute_set", mcpgo.WithIntegerItems(), mcpgo.Description("Substitute food IDs to set (replaces all)")),
-		dryRunParam(),
 	)
 	foodBatchUpdateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		foods, err := req.RequireIntSlice("foods")
@@ -300,7 +293,7 @@ func registerFoodTools(d *deps) []toolDef {
 		if s, err := req.RequireIntSlice("substitute_set"); err == nil {
 			update.SubstituteSet = s
 		}
-		return runWrite(ctx, req, "POST", "api/food/batch_update/", update, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Foods().BatchUpdate(ctx, update)
 		})
 	}
@@ -308,12 +301,11 @@ func registerFoodTools(d *deps) []toolDef {
 	fdcImport := mcpgo.NewTool("food_fdc_import",
 		mcpgo.WithDescription("Pull USDA FDC data into a food that already has an fdc_id set (populates properties and conversions server-side)."),
 		mcpgo.WithInteger("food_id", mcpgo.Required(), mcpgo.Description("Food ID")),
-		dryRunParam(),
 		jqParam(),
 	)
 	fdcImportHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id := req.GetInt("food_id", 0)
-		return runWrite(ctx, req, "POST", fmt.Sprintf("api/food/%d/fdc/", id), nil, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Foods().FdcImport(ctx, id)
 		})
 	}
@@ -321,23 +313,21 @@ func registerFoodTools(d *deps) []toolDef {
 	aiProps := mcpgo.NewTool("food_ai_properties",
 		mcpgo.WithDescription("Trigger server-side AI to generate properties for a food. Requires an AI provider configured on the instance."),
 		mcpgo.WithInteger("food_id", mcpgo.Required(), mcpgo.Description("Food ID")),
-		dryRunParam(),
 		jqParam(),
 	)
 	aiPropsHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id := req.GetInt("food_id", 0)
-		return runWrite(ctx, req, "POST", fmt.Sprintf("api/food/%d/aiproperties/", id), nil, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Foods().AiProperties(ctx, id)
 		})
 	}
 
 	ensure := mcpgo.NewTool("food_ensure",
-		mcpgo.WithDescription("Ensure foods exist by exact name, creating missing ones (composite of food_list + food_create + FDC candidate lookup). Use dry_run to preview without writing."),
+		mcpgo.WithDescription("Ensure foods exist by exact name, creating missing ones (composite of food_list + food_create + FDC candidate lookup). With force_create=false it only reports which names exist, match, or would be created."),
 		mcpgo.WithArray("names", mcpgo.WithStringItems(), mcpgo.Required(), mcpgo.Description("Food names to ensure")),
 		mcpgo.WithBoolean("force_create", mcpgo.Description("Create when no exact match exists (default true); false only reports")),
 		mcpgo.WithNumber("threshold", mcpgo.Description("Jaccard similarity floor for near-match reporting (default 0.6)")),
 		mcpgo.WithInteger("fdc_limit", mcpgo.Description("FDC candidates per name when FDC is configured (default 5)")),
-		dryRunParam(),
 		jqParam(),
 	)
 	ensureHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -351,7 +341,7 @@ func registerFoodTools(d *deps) []toolDef {
 			Threshold:   req.GetFloat("threshold", 0),
 			FDCLimit:    req.GetInt("fdc_limit", 0),
 			ForceCreate: req.GetBool("force_create", true),
-		}, req.GetBool("dry_run", false))
+		}, false)
 		if err != nil {
 			return errResult(err), nil
 		}
@@ -361,9 +351,6 @@ func registerFoodTools(d *deps) []toolDef {
 				return errResult(err), nil
 			}
 			return mcpgo.NewToolResultText(s), nil
-		}
-		if req.GetBool("dry_run", false) {
-			return jsonResult(map[string]any{"dry_run": true, "report": report}), nil
 		}
 		return jsonResult(report), nil
 	}

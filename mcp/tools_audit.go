@@ -32,23 +32,45 @@ func registerAuditTools(d *deps) []toolDef {
 		return jsonResult(result), nil
 	}
 
-	fix := mcpgo.NewTool("food_audit_fix",
-		mcpgo.WithDescription("Rename a food to its normalized canonical name (Title Case, prep words stripped). On a name collision it merges into the existing food unless merge=false. Use dry_run first to preview."),
+	// fixPreview is the read-only counterpart of food_audit_fix: Fix with
+	// dryRun=true returns the plan (normalized name, alternatives, collision
+	// and merge decision) without writing.
+	fixPreview := mcpgo.NewTool("food_audit_fix_preview",
+		mcpgo.WithDescription("Preview the food_audit_fix plan without writing: normalized name, alternatives, and the collision/merge decision. Read-only."),
 		mcpgo.WithInteger("food_id", mcpgo.Required(), mcpgo.Description("Food ID")),
 		mcpgo.WithBoolean("merge", mcpgo.Description("Merge into an existing food with the same canonical name on collision (default true); false makes a collision an error")),
-		dryRunParam(),
+		jqParam(),
 	)
-	fixHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-		dryRun := req.GetBool("dry_run", false)
+	fixPreviewHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		result, err := auditfood.Fix(ctx, d.Tandoor, &auditfood.FixOptions{
 			FoodID:           req.GetInt("food_id", 0),
 			MergeOnCollision: req.GetBool("merge", true),
-		}, dryRun)
+		}, true)
 		if err != nil {
 			return errResult(err), nil
 		}
-		if dryRun {
-			return jsonResult(map[string]any{"dry_run": true, "result": result}), nil
+		if jq := req.GetString("jq", ""); jq != "" {
+			s, err := applyJQ(ctx, jq, result)
+			if err != nil {
+				return errResult(err), nil
+			}
+			return mcpgo.NewToolResultText(s), nil
+		}
+		return jsonResult(result), nil
+	}
+
+	fix := mcpgo.NewTool("food_audit_fix",
+		mcpgo.WithDescription("Rename a food to its normalized canonical name (Title Case, prep words stripped). On a name collision it merges into the existing food unless merge=false. Use food_audit_fix_preview to see the plan first."),
+		mcpgo.WithInteger("food_id", mcpgo.Required(), mcpgo.Description("Food ID")),
+		mcpgo.WithBoolean("merge", mcpgo.Description("Merge into an existing food with the same canonical name on collision (default true); false makes a collision an error")),
+	)
+	fixHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+		result, err := auditfood.Fix(ctx, d.Tandoor, &auditfood.FixOptions{
+			FoodID:           req.GetInt("food_id", 0),
+			MergeOnCollision: req.GetBool("merge", true),
+		}, false)
+		if err != nil {
+			return errResult(err), nil
 		}
 		return jsonResult(result), nil
 	}
@@ -75,6 +97,7 @@ func registerAuditTools(d *deps) []toolDef {
 
 	return []toolDef{
 		{tool: inspect, handler: inspectHandler},
+		{tool: fixPreview, handler: fixPreviewHandler},
 		{tool: fix, handler: fixHandler, write: true},
 		{tool: dups, handler: dupsHandler},
 	}

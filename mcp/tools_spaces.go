@@ -200,7 +200,6 @@ func registerSpaceTools(d *deps) []toolDef {
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("User ID")),
 		mcpgo.WithString("first_name", mcpgo.Description("First name")),
 		mcpgo.WithString("last_name", mcpgo.Description("Last name")),
-		dryRunParam(),
 	)
 	userPatchHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -224,7 +223,7 @@ func registerSpaceTools(d *deps) []toolDef {
 		if len(body) == 1 {
 			return errResult(fmt.Errorf("at least one of first_name or last_name is required")), nil
 		}
-		return runWrite(ctx, req, "PATCH", fmt.Sprintf("api/user/%d/", id), body, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Users().Patch(ctx, u)
 		})
 	}
@@ -233,7 +232,6 @@ func registerSpaceTools(d *deps) []toolDef {
 	hhCreate := mcpgo.NewTool("household_create",
 		mcpgo.WithDescription("Create a household in the current space."),
 		mcpgo.WithString("name", mcpgo.Required(), mcpgo.Description("Household name")),
-		dryRunParam(),
 	)
 	hhCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		name, err := req.RequireString("name")
@@ -241,7 +239,7 @@ func registerSpaceTools(d *deps) []toolDef {
 			return errResult(err), nil
 		}
 		h := &space.Household{Name: name}
-		return runWrite(ctx, req, "POST", "api/household/", h, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Households().Create(ctx, h)
 		})
 	}
@@ -250,7 +248,6 @@ func registerSpaceTools(d *deps) []toolDef {
 		mcpgo.WithDescription("Update a household's name (the only writable field). Returns the updated household."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Household ID")),
 		mcpgo.WithString("name", mcpgo.Required(), mcpgo.Description("New name")),
-		dryRunParam(),
 	)
 	hhUpdateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -262,7 +259,7 @@ func registerSpaceTools(d *deps) []toolDef {
 			return errResult(err), nil
 		}
 		h := &space.Household{ID: id, Name: name}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/household/%d/", id), h, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Households().Update(ctx, h)
 		})
 	}
@@ -271,7 +268,6 @@ func registerSpaceTools(d *deps) []toolDef {
 		mcpgo.WithDescription("Partially update a household's name (the only writable field)."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Household ID")),
 		mcpgo.WithString("name", mcpgo.Description("New name")),
-		dryRunParam(),
 	)
 	hhPatchHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -286,7 +282,7 @@ func registerSpaceTools(d *deps) []toolDef {
 		if len(body) == 0 {
 			return errResult(fmt.Errorf("no fields to update")), nil
 		}
-		return runWrite(ctx, req, "PATCH", fmt.Sprintf("api/household/%d/", id), body, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Households().Patch(ctx, h)
 		})
 	}
@@ -294,14 +290,13 @@ func registerSpaceTools(d *deps) []toolDef {
 	hhDelete := mcpgo.NewTool("household_delete",
 		mcpgo.WithDescription("Delete a household."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Household ID")),
-		dryRunParam(),
 	)
 	hhDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/household/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/household/%d/", id), func() error {
 			return d.Tandoor.Households().Delete(ctx, id)
 		})
 	}
@@ -315,7 +310,6 @@ func registerSpaceTools(d *deps) []toolDef {
 		mcpgo.WithBoolean("reusable", mcpgo.Description("Allow the link to be used more than once (default false)")),
 		mcpgo.WithString("internal_note", mcpgo.Description("Admin note on the link (optional)")),
 		mcpgo.WithString("valid_until", mcpgo.Description("Expiry date YYYY-MM-DD (default: server default)")),
-		dryRunParam(),
 	)
 	invCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		groupID, err := req.RequireInt("group_id")
@@ -334,7 +328,7 @@ func registerSpaceTools(d *deps) []toolDef {
 		if v := req.GetString("valid_until", ""); v != "" {
 			reqBody.ValidUntil = &v
 		}
-		return runWrite(ctx, req, "POST", "api/invite-link/", reqBody, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.InviteLinks().Create(ctx, reqBody)
 		})
 	}
@@ -342,14 +336,13 @@ func registerSpaceTools(d *deps) []toolDef {
 	invDelete := mcpgo.NewTool("invite_link_delete",
 		mcpgo.WithDescription("Delete an invite link."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Invite link ID")),
-		dryRunParam(),
 	)
 	invDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/invite-link/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/invite-link/%d/", id), func() error {
 			return d.Tandoor.InviteLinks().Delete(ctx, id)
 		})
 	}

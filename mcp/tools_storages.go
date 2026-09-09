@@ -57,7 +57,6 @@ func registerStorageTools(d *deps) []toolDef {
 		mcpgo.WithDescription("Create a storage backend (DB, NEXTCLOUD, or LOCAL). Returns the created storage."),
 		mcpgo.WithString("name", mcpgo.Required(), mcpgo.Description("Storage name")),
 		mcpgo.WithString("method", mcpgo.Required(), mcpgo.Description("Storage method: DB, NEXTCLOUD, or LOCAL")),
-		dryRunParam(),
 	}, storageWriteFields...)
 	stCreate := mcpgo.NewTool("storage_create", stCreateOpts...)
 	stCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -72,7 +71,7 @@ func registerStorageTools(d *deps) []toolDef {
 		st := &storage.Storage{Name: name, Method: method,
 			Username: req.GetString("username", ""), Password: req.GetString("password", ""),
 			Token: req.GetString("token", ""), URL: req.GetString("url", ""), Path: req.GetString("path", "")}
-		return runWrite(ctx, req, "POST", "api/storage/", st, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Storages().Create(ctx, st)
 		})
 	}
@@ -82,7 +81,6 @@ func registerStorageTools(d *deps) []toolDef {
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Storage ID")),
 		mcpgo.WithString("name", mcpgo.Required(), mcpgo.Description("Storage name")),
 		mcpgo.WithString("method", mcpgo.Required(), mcpgo.Description("Storage method: DB, NEXTCLOUD, or LOCAL")),
-		dryRunParam(),
 	}, storageWriteFields...)
 	stUpdate := mcpgo.NewTool("storage_update", stUpdateOpts...)
 	stUpdateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -101,7 +99,7 @@ func registerStorageTools(d *deps) []toolDef {
 		st := &storage.Storage{ID: id, Name: name, Method: method,
 			Username: req.GetString("username", ""), Password: req.GetString("password", ""),
 			Token: req.GetString("token", ""), URL: req.GetString("url", ""), Path: req.GetString("path", "")}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/storage/%d/", id), st, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Storages().Update(ctx, st)
 		})
 	}
@@ -111,7 +109,6 @@ func registerStorageTools(d *deps) []toolDef {
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Storage ID")),
 		mcpgo.WithString("name", mcpgo.Description("Storage name")),
 		mcpgo.WithString("method", mcpgo.Description("Storage method: DB, NEXTCLOUD, or LOCAL")),
-		dryRunParam(),
 	}, storageWriteFields...)
 	stPatch := mcpgo.NewTool("storage_patch", stPatchOpts...)
 	stPatchHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -134,7 +131,7 @@ func registerStorageTools(d *deps) []toolDef {
 				*field.dest = v
 			}
 		}
-		return runWrite(ctx, req, "PATCH", fmt.Sprintf("api/storage/%d/", id), st, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Storages().Patch(ctx, st)
 		})
 	}
@@ -142,14 +139,13 @@ func registerStorageTools(d *deps) []toolDef {
 	stDelete := mcpgo.NewTool("storage_delete",
 		mcpgo.WithDescription("Delete a storage backend. Fails if files still reference it."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Storage ID")),
-		dryRunParam(),
 	)
 	stDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/storage/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/storage/%d/", id), func() error {
 			return d.Tandoor.Storages().Delete(ctx, id)
 		})
 	}

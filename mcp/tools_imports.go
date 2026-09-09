@@ -98,24 +98,22 @@ func registerImportTools(d *deps) []toolDef {
 	importImport := mcpgo.NewTool("import_import",
 		mcpgo.WithDescription("Execute a single staged recipe import (creates the recipe)."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Recipe import ID (from import_list)")),
-		dryRunParam(),
 	)
 	importImportHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "POST", fmt.Sprintf("api/recipe-import/%d/import_recipe/", id), nil, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.RecipeImports().ImportRecipe(ctx, id)
 		})
 	}
 
 	importAll := mcpgo.NewTool("import_import_all",
 		mcpgo.WithDescription("Execute all pending staged recipe imports."),
-		dryRunParam(),
 	)
 	importAllHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
-		return runWrite(ctx, req, "POST", "api/recipe-import/import_all/", nil, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.RecipeImports().ImportAll(ctx)
 		})
 	}
@@ -123,14 +121,13 @@ func registerImportTools(d *deps) []toolDef {
 	importDelete := mcpgo.NewTool("import_delete",
 		mcpgo.WithDescription("Delete a staged recipe import without executing it."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Recipe import ID")),
-		dryRunParam(),
 	)
 	importDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/recipe-import/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/recipe-import/%d/", id), func() error {
 			return d.Tandoor.RecipeImports().Delete(ctx, id)
 		})
 	}
@@ -162,7 +159,6 @@ func registerImportTools(d *deps) []toolDef {
 		mcpgo.WithString("url", mcpgo.Description("Source URL to scrape (or data; exactly one required)")),
 		mcpgo.WithString("data", mcpgo.Description("Raw source data (or url; exactly one required)")),
 		mcpgo.WithInteger("bookmarklet_id", mcpgo.Description("Bookmarklet import ID to use instead (overrides url/data)")),
-		dryRunParam(),
 	)
 	fromSourceHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		body := &action.RecipeFromSourceRequest{
@@ -175,7 +171,7 @@ func registerImportTools(d *deps) []toolDef {
 		if body.URL == "" && body.Data == "" && body.Bookmarklet == nil {
 			return errResult(fmt.Errorf("one of url, data, or bookmarklet_id is required")), nil
 		}
-		return runWrite(ctx, req, "POST", "api/recipe-from-source/", body, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.RecipeFromSource().Import(ctx, body)
 		})
 	}
@@ -199,7 +195,6 @@ func registerImportTools(d *deps) []toolDef {
 		mcpgo.WithArray("selected_datatypes", mcpgo.WithStringItems(), mcpgo.Required(), mcpgo.Description("Datatypes to import (from open_data_metadata)")),
 		mcpgo.WithBoolean("update_existing", mcpgo.Description("Update already-imported objects (default false)")),
 		mcpgo.WithBoolean("use_metric", mcpgo.Description("Import metric units (default false)")),
-		dryRunParam(),
 	)
 	openDataImportHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		version, err := req.RequireString("selected_version")
@@ -216,7 +211,7 @@ func registerImportTools(d *deps) []toolDef {
 			UpdateExisting:    req.GetBool("update_existing", false),
 			UseMetric:         req.GetBool("use_metric", false),
 		}
-		return runWrite(ctx, req, "POST", "api/import-open-data/", body, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.ImportOpenData().Import(ctx, body)
 		})
 	}

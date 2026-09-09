@@ -86,7 +86,6 @@ func registerBookTools(d *deps) []toolDef {
 		mcpgo.WithString("description", mcpgo.Description("Book description")),
 		mcpgo.WithInteger("order", mcpgo.Description("Display order")),
 		mcpgo.WithArray("shared_user_ids", mcpgo.WithIntegerItems(), mcpgo.Description("User IDs to share this book with (default: private)")),
-		dryRunParam(),
 	)
 	bookCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		name, err := req.RequireString("name")
@@ -100,7 +99,7 @@ func registerBookTools(d *deps) []toolDef {
 		if ids, err := req.RequireIntSlice("shared_user_ids"); err == nil {
 			b.Shared = usersFromIDs(ids)
 		}
-		return runWrite(ctx, req, "POST", "api/recipe-book/", b, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.RecipeBooks().Create(ctx, b)
 		})
 	}
@@ -112,7 +111,6 @@ func registerBookTools(d *deps) []toolDef {
 		mcpgo.WithString("description", mcpgo.Description("Book description")),
 		mcpgo.WithInteger("order", mcpgo.Description("Display order")),
 		mcpgo.WithArray("shared_user_ids", mcpgo.WithIntegerItems(), mcpgo.Description("User IDs this book is shared with (empty to make private)")),
-		dryRunParam(),
 	)
 	bookUpdateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -130,7 +128,7 @@ func registerBookTools(d *deps) []toolDef {
 		if ids, err := req.RequireIntSlice("shared_user_ids"); err == nil {
 			b.Shared = usersFromIDs(ids)
 		}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/recipe-book/%d/", id), b, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.RecipeBooks().Update(ctx, b)
 		})
 	}
@@ -138,14 +136,13 @@ func registerBookTools(d *deps) []toolDef {
 	bookDelete := mcpgo.NewTool("book_delete",
 		mcpgo.WithDescription("Delete a recipe book (its recipe links are removed)."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Book ID")),
-		dryRunParam(),
 	)
 	bookDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/recipe-book/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/recipe-book/%d/", id), func() error {
 			return d.Tandoor.RecipeBooks().Delete(ctx, id)
 		})
 	}
@@ -154,7 +151,6 @@ func registerBookTools(d *deps) []toolDef {
 		mcpgo.WithDescription("Add a recipe to a recipe book. Returns the created entry."),
 		mcpgo.WithInteger("book_id", mcpgo.Required(), mcpgo.Description("Book ID")),
 		mcpgo.WithInteger("recipe_id", mcpgo.Required(), mcpgo.Description("Recipe ID")),
-		dryRunParam(),
 	)
 	entryCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		bookID, err := req.RequireInt("book_id")
@@ -166,7 +162,7 @@ func registerBookTools(d *deps) []toolDef {
 			return errResult(err), nil
 		}
 		e := &recipebook.Entry{Book: bookID, Recipe: recipeID}
-		return runWrite(ctx, req, "POST", "api/recipe-book-entry/", e, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.RecipeBookEntries().Create(ctx, e)
 		})
 	}
@@ -174,14 +170,13 @@ func registerBookTools(d *deps) []toolDef {
 	entryDelete := mcpgo.NewTool("book_entry_delete",
 		mcpgo.WithDescription("Remove a recipe from a recipe book."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Book entry ID")),
-		dryRunParam(),
 	)
 	entryDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/recipe-book-entry/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/recipe-book-entry/%d/", id), func() error {
 			return d.Tandoor.RecipeBookEntries().Delete(ctx, id)
 		})
 	}

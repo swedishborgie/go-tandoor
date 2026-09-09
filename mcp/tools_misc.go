@@ -274,7 +274,6 @@ func registerMiscTools(d *deps) []toolDef {
 		mcpgo.WithDescription("Update a user's search preferences (data passes through verbatim; fields: search, lookup, trigram_threshold, unaccent/icontains/istartswith/trigram/fulltext as lists of {name, field} objects)."),
 		mcpgo.WithInteger("user_id", mcpgo.Required(), mcpgo.Description("User ID whose preferences to update (search preferences are per-user)")),
 		mcpgo.WithAny("data", mcpgo.Required(), mcpgo.Description("Preference fields to set as a JSON object (only fields present are changed)")),
-		dryRunParam(),
 	)
 	searchPrefPatchHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		userID, err := req.RequireInt("user_id")
@@ -285,7 +284,7 @@ func registerMiscTools(d *deps) []toolDef {
 		if !ok {
 			return errResult(fmt.Errorf("data must be a JSON object")), nil
 		}
-		return runWrite(ctx, req, "PATCH", fmt.Sprintf("api/search-preference/%d/", userID), data, func() (any, error) {
+		return runWrite(func() (any, error) {
 			var out any
 			if err := d.Tandoor.DoJSON(ctx, "PATCH", fmt.Sprintf("api/search-preference/%d/", userID), data, &out); err != nil {
 				return nil, err

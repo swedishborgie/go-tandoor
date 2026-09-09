@@ -55,7 +55,6 @@ func registerKeywordTools(d *deps) []toolDef {
 		mcpgo.WithDescription("Create a keyword. Returns the created keyword."),
 		mcpgo.WithString("name", mcpgo.Required(), mcpgo.Description("Keyword name")),
 		mcpgo.WithString("description", mcpgo.Description("Keyword description")),
-		dryRunParam(),
 	)
 	kwCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		name, err := req.RequireString("name")
@@ -63,7 +62,7 @@ func registerKeywordTools(d *deps) []toolDef {
 			return errResult(err), nil
 		}
 		k := &keyword.Keyword{Name: name, Description: req.GetString("description", "")}
-		return runWrite(ctx, req, "POST", "api/keyword/", k, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Keywords().Create(ctx, k)
 		})
 	}
@@ -73,7 +72,6 @@ func registerKeywordTools(d *deps) []toolDef {
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Keyword ID")),
 		mcpgo.WithString("name", mcpgo.Required(), mcpgo.Description("Keyword name")),
 		mcpgo.WithString("description", mcpgo.Description("Keyword description")),
-		dryRunParam(),
 	)
 	kwUpdateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -85,7 +83,7 @@ func registerKeywordTools(d *deps) []toolDef {
 			return errResult(err), nil
 		}
 		k := &keyword.Keyword{ID: id, Name: name, Description: req.GetString("description", "")}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/keyword/%d/", id), k, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Keywords().Update(ctx, k)
 		})
 	}
@@ -95,7 +93,6 @@ func registerKeywordTools(d *deps) []toolDef {
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Keyword ID")),
 		mcpgo.WithString("name", mcpgo.Description("Keyword name")),
 		mcpgo.WithString("description", mcpgo.Description("Keyword description")),
-		dryRunParam(),
 	)
 	kwPatchHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -109,7 +106,7 @@ func registerKeywordTools(d *deps) []toolDef {
 		if v, err := req.RequireString("description"); err == nil {
 			k.Description = v
 		}
-		return runWrite(ctx, req, "PATCH", fmt.Sprintf("api/keyword/%d/", id), k, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Keywords().Patch(ctx, k)
 		})
 	}
@@ -117,14 +114,13 @@ func registerKeywordTools(d *deps) []toolDef {
 	kwDelete := mcpgo.NewTool("keyword_delete",
 		mcpgo.WithDescription("Delete a keyword. Recipes keeping it are re-pointed to its parent."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Keyword ID")),
-		dryRunParam(),
 	)
 	kwDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/keyword/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/keyword/%d/", id), func() error {
 			return d.Tandoor.Keywords().Delete(ctx, id)
 		})
 	}
@@ -133,7 +129,6 @@ func registerKeywordTools(d *deps) []toolDef {
 		mcpgo.WithDescription("Merge one keyword into another: recipes move to the target, then the source is deleted."),
 		mcpgo.WithInteger("source_id", mcpgo.Required(), mcpgo.Description("Keyword to merge (deleted)")),
 		mcpgo.WithInteger("target_id", mcpgo.Required(), mcpgo.Description("Keyword to keep")),
-		dryRunParam(),
 	)
 	kwMergeHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		sourceID, err := req.RequireInt("source_id")
@@ -144,7 +139,7 @@ func registerKeywordTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/keyword/%d/merge/%d/", sourceID, targetID), nil, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Keywords().Merge(ctx, sourceID, targetID)
 		})
 	}
@@ -153,7 +148,6 @@ func registerKeywordTools(d *deps) []toolDef {
 		mcpgo.WithDescription("Move a keyword under a new parent (re-parent in the keyword tree)."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Keyword ID")),
 		mcpgo.WithInteger("parent_id", mcpgo.Required(), mcpgo.Description("New parent keyword ID (0 for top level)")),
-		dryRunParam(),
 	)
 	kwMoveHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -164,7 +158,7 @@ func registerKeywordTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/keyword/%d/move/%d/", id, parentID), nil, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Keywords().Move(ctx, id, parentID)
 		})
 	}

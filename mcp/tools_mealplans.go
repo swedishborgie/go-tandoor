@@ -137,7 +137,6 @@ func registerMealplanTools(d *deps) []toolDef {
 		mcpgo.WithNumber("servings", mcpgo.Description("Servings (default 1)")),
 		mcpgo.WithString("to_date", mcpgo.Description("End date (RFC3339 or YYYY-MM-DD)")),
 		mcpgo.WithBoolean("add_shopping", mcpgo.Description("Add this meal plan to the shopping list")),
-		dryRunParam(),
 	)
 	planCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		from, err := parseDateOrDateTime(req.GetString("from_date", ""))
@@ -168,7 +167,7 @@ func registerMealplanTools(d *deps) []toolDef {
 		if v, err := req.RequireBool("add_shopping"); err == nil {
 			mp.AddShopping = v
 		}
-		return runWrite(ctx, req, "POST", "api/meal-plan/", mp, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.MealPlans().Create(ctx, mp)
 		})
 	}
@@ -184,7 +183,6 @@ func registerMealplanTools(d *deps) []toolDef {
 		mcpgo.WithNumber("servings", mcpgo.Description("Servings (default 1)")),
 		mcpgo.WithString("to_date", mcpgo.Description("End date (RFC3339 or YYYY-MM-DD)")),
 		mcpgo.WithBoolean("add_shopping", mcpgo.Description("Add this meal plan to the shopping list")),
-		dryRunParam(),
 	)
 	planUpdateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -219,7 +217,7 @@ func registerMealplanTools(d *deps) []toolDef {
 		if v, err := req.RequireBool("add_shopping"); err == nil {
 			mp.AddShopping = v
 		}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/meal-plan/%d/", id), mp, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.MealPlans().Update(ctx, mp)
 		})
 	}
@@ -227,14 +225,13 @@ func registerMealplanTools(d *deps) []toolDef {
 	planDelete := mcpgo.NewTool("meal_plan_delete",
 		mcpgo.WithDescription("Delete a meal plan entry."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Meal plan ID")),
-		dryRunParam(),
 	)
 	planDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/meal-plan/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/meal-plan/%d/", id), func() error {
 			return d.Tandoor.MealPlans().Delete(ctx, id)
 		})
 	}
@@ -246,7 +243,6 @@ func registerMealplanTools(d *deps) []toolDef {
 		mcpgo.WithInteger("order", mcpgo.Description("Display order")),
 		mcpgo.WithString("time", mcpgo.Description("Default time (HH:MM)")),
 		mcpgo.WithString("color", mcpgo.Description("Display color (e.g. #ff0000)")),
-		dryRunParam(),
 	)
 	typeCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		name, err := req.RequireString("name")
@@ -263,7 +259,7 @@ func registerMealplanTools(d *deps) []toolDef {
 		if v, err := req.RequireString("color"); err == nil {
 			mt.Color = &v
 		}
-		return runWrite(ctx, req, "POST", "api/meal-type/", mt, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.MealTypes().Create(ctx, mt)
 		})
 	}
@@ -275,7 +271,6 @@ func registerMealplanTools(d *deps) []toolDef {
 		mcpgo.WithInteger("order", mcpgo.Description("Display order")),
 		mcpgo.WithString("time", mcpgo.Description("Default time (HH:MM)")),
 		mcpgo.WithString("color", mcpgo.Description("Display color")),
-		dryRunParam(),
 	)
 	typeUpdateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -296,7 +291,7 @@ func registerMealplanTools(d *deps) []toolDef {
 		if v, err := req.RequireString("color"); err == nil {
 			mt.Color = &v
 		}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/meal-type/%d/", id), mt, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.MealTypes().Update(ctx, mt)
 		})
 	}
@@ -308,7 +303,6 @@ func registerMealplanTools(d *deps) []toolDef {
 		mcpgo.WithInteger("order", mcpgo.Description("Display order")),
 		mcpgo.WithString("time", mcpgo.Description("Default time (HH:MM)")),
 		mcpgo.WithString("color", mcpgo.Description("Display color")),
-		dryRunParam(),
 	)
 	typePatchHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -328,7 +322,7 @@ func registerMealplanTools(d *deps) []toolDef {
 		if v, err := req.RequireString("color"); err == nil {
 			mt.Color = &v
 		}
-		return runWrite(ctx, req, "PATCH", fmt.Sprintf("api/meal-type/%d/", id), mt, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.MealTypes().Patch(ctx, mt)
 		})
 	}
@@ -336,20 +330,19 @@ func registerMealplanTools(d *deps) []toolDef {
 	typeDelete := mcpgo.NewTool("meal_type_delete",
 		mcpgo.WithDescription("Delete a meal type. Fails if meal plans still use it."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Meal type ID")),
-		dryRunParam(),
 	)
 	typeDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/meal-type/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/meal-type/%d/", id), func() error {
 			return d.Tandoor.MealTypes().Delete(ctx, id)
 		})
 	}
 
 	autoPlan := mcpgo.NewTool("meal_plan_auto_plan",
-		mcpgo.WithDescription("Auto-generate meal plans for a date range by picking recipes matching keywords. Use dry_run to preview the request body."),
+		mcpgo.WithDescription("Auto-generate meal plans for a date range; Tandoor picks the recipes matching the keywords server-side."),
 		mcpgo.WithString("start_date", mcpgo.Required(), mcpgo.Description("Start date (RFC3339 or YYYY-MM-DD)")),
 		mcpgo.WithString("end_date", mcpgo.Required(), mcpgo.Description("End date (RFC3339 or YYYY-MM-DD)")),
 		mcpgo.WithInteger("meal_type_id", mcpgo.Required(), mcpgo.Description("Meal type ID to assign")),
@@ -358,7 +351,6 @@ func registerMealplanTools(d *deps) []toolDef {
 		mcpgo.WithNumber("servings", mcpgo.Description("Planned servings (default 1)")),
 		mcpgo.WithArray("shared_user_ids", mcpgo.WithIntegerItems(), mcpgo.Description("User IDs to share the plans with")),
 		mcpgo.WithBoolean("add_shopping", mcpgo.Description("Add planned recipes to shopping lists")),
-		dryRunParam(),
 	)
 	autoPlanHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		start, err := parseDateOrDateTime(req.GetString("start_date", ""))
@@ -387,7 +379,7 @@ func registerMealplanTools(d *deps) []toolDef {
 			Shared:      shared,
 			AddShopping: req.GetBool("add_shopping", false),
 		}
-		return runWrite(ctx, req, "POST", "api/auto-plan/", body, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.AutoPlan().Plan(ctx, body)
 		})
 	}

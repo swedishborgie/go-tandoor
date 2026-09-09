@@ -92,7 +92,6 @@ func registerPropertyTools(d *deps) []toolDef {
 		mcpgo.WithDescription("Create a property value. Returns the created property. Property type IDs are instance-specific — use property_type_list first."),
 		mcpgo.WithInteger("property_type_id", mcpgo.Required(), mcpgo.Description("Property type ID")),
 		mcpgo.WithNumber("property_amount", mcpgo.Description("Property amount")),
-		dryRunParam(),
 	)
 	propCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		typeID, err := req.RequireInt("property_type_id")
@@ -103,7 +102,7 @@ func registerPropertyTools(d *deps) []toolDef {
 		if v, err := req.RequireFloat("property_amount"); err == nil {
 			p.PropertyAmount = &v
 		}
-		return runWrite(ctx, req, "POST", "api/property/", p, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Properties().Create(ctx, p)
 		})
 	}
@@ -113,7 +112,6 @@ func registerPropertyTools(d *deps) []toolDef {
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Property ID")),
 		mcpgo.WithInteger("property_type_id", mcpgo.Required(), mcpgo.Description("Property type ID")),
 		mcpgo.WithNumber("property_amount", mcpgo.Description("Property amount")),
-		dryRunParam(),
 	)
 	propUpdateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -128,7 +126,7 @@ func registerPropertyTools(d *deps) []toolDef {
 		if v, err := req.RequireFloat("property_amount"); err == nil {
 			p.PropertyAmount = &v
 		}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/property/%d/", id), p, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Properties().Update(ctx, p)
 		})
 	}
@@ -138,7 +136,6 @@ func registerPropertyTools(d *deps) []toolDef {
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Property ID")),
 		mcpgo.WithInteger("property_type_id", mcpgo.Description("Property type ID")),
 		mcpgo.WithNumber("property_amount", mcpgo.Description("Property amount")),
-		dryRunParam(),
 	)
 	propPatchHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -152,7 +149,7 @@ func registerPropertyTools(d *deps) []toolDef {
 		if v, err := req.RequireFloat("property_amount"); err == nil {
 			p.PropertyAmount = &v
 		}
-		return runWrite(ctx, req, "PATCH", fmt.Sprintf("api/property/%d/", id), p, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Properties().Patch(ctx, p)
 		})
 	}
@@ -160,14 +157,13 @@ func registerPropertyTools(d *deps) []toolDef {
 	propDelete := mcpgo.NewTool("property_delete",
 		mcpgo.WithDescription("Delete a property value."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Property ID")),
-		dryRunParam(),
 	)
 	propDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/property/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/property/%d/", id), func() error {
 			return d.Tandoor.Properties().Delete(ctx, id)
 		})
 	}
@@ -180,7 +176,6 @@ func registerPropertyTools(d *deps) []toolDef {
 		mcpgo.WithString("description", mcpgo.Description("Description")),
 		mcpgo.WithInteger("order", mcpgo.Description("Display order")),
 		mcpgo.WithInteger("fdc_id", mcpgo.Description("USDA FoodData Central nutrient ID")),
-		dryRunParam(),
 	)
 	typeCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		name, err := req.RequireString("name")
@@ -194,7 +189,7 @@ func registerPropertyTools(d *deps) []toolDef {
 		if v, err := req.RequireInt("fdc_id"); err == nil && v != 0 {
 			t.FDCID = &v
 		}
-		return runWrite(ctx, req, "POST", "api/property-type/", t, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.PropertyTypes().Create(ctx, t)
 		})
 	}
@@ -207,7 +202,6 @@ func registerPropertyTools(d *deps) []toolDef {
 		mcpgo.WithString("description", mcpgo.Description("Description")),
 		mcpgo.WithInteger("order", mcpgo.Description("Display order")),
 		mcpgo.WithInteger("fdc_id", mcpgo.Description("USDA FoodData Central nutrient ID")),
-		dryRunParam(),
 	)
 	typeUpdateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -225,7 +219,7 @@ func registerPropertyTools(d *deps) []toolDef {
 		if v, err := req.RequireInt("fdc_id"); err == nil && v != 0 {
 			t.FDCID = &v
 		}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/property-type/%d/", id), t, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.PropertyTypes().Update(ctx, t)
 		})
 	}
@@ -238,7 +232,6 @@ func registerPropertyTools(d *deps) []toolDef {
 		mcpgo.WithString("description", mcpgo.Description("Description")),
 		mcpgo.WithInteger("order", mcpgo.Description("Display order")),
 		mcpgo.WithInteger("fdc_id", mcpgo.Description("USDA FoodData Central nutrient ID")),
-		dryRunParam(),
 	)
 	typePatchHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
@@ -261,7 +254,7 @@ func registerPropertyTools(d *deps) []toolDef {
 		if v, err := req.RequireInt("fdc_id"); err == nil && v != 0 {
 			t.FDCID = &v
 		}
-		return runWrite(ctx, req, "PATCH", fmt.Sprintf("api/property-type/%d/", id), t, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.PropertyTypes().Patch(ctx, t)
 		})
 	}
@@ -269,27 +262,25 @@ func registerPropertyTools(d *deps) []toolDef {
 	typeDelete := mcpgo.NewTool("property_type_delete",
 		mcpgo.WithDescription("Delete a property type. Fails if property values still use it."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Property type ID")),
-		dryRunParam(),
 	)
 	typeDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/property-type/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/property-type/%d/", id), func() error {
 			return d.Tandoor.PropertyTypes().Delete(ctx, id)
 		})
 	}
 
 	attach := mcpgo.NewTool("property_attach",
-		mcpgo.WithDescription("Attach a nutrient property to a food per 100 g (composite: resolves the food, sets the per-100 unit, creates or updates the property). Idempotent — re-running updates the existing property. Use dry_run to preview."),
+		mcpgo.WithDescription("Attach a nutrient property to a food per 100 g (composite: resolves the food, sets the per-100 unit, creates or updates the property). Idempotent — re-running updates the existing property."),
 		mcpgo.WithInteger("food_id", mcpgo.Description("Target food ID (or ingredient_id; exactly one required)")),
 		mcpgo.WithInteger("ingredient_id", mcpgo.Description("Ingredient whose food is the target (or food_id; exactly one required)")),
 		mcpgo.WithInteger("property_type_id", mcpgo.Required(), mcpgo.Description("Property type ID (e.g. 1 = calories; see property_type_list)")),
 		mcpgo.WithNumber("property_amount", mcpgo.Required(), mcpgo.Description("Amount per 100 g")),
 		mcpgo.WithNumber("per_100_amount", mcpgo.Description("Basis amount for the food's properties_food_amount (default 100)")),
 		mcpgo.WithInteger("per_100_unit_id", mcpgo.Description("Basis unit ID for properties_food_unit (default: food's existing unit, else the 'gram' unit)")),
-		dryRunParam(),
 		jqParam(),
 	)
 	attachHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -305,7 +296,7 @@ func registerPropertyTools(d *deps) []toolDef {
 			Amount:         req.GetFloat("property_amount", 0),
 			Per100Amount:   req.GetFloat("per_100_amount", 0),
 			Per100UnitID:   req.GetInt("per_100_unit_id", 0),
-		}, req.GetBool("dry_run", false))
+		}, false)
 		if err != nil {
 			return errResult(err), nil
 		}
@@ -315,9 +306,6 @@ func registerPropertyTools(d *deps) []toolDef {
 				return errResult(err), nil
 			}
 			return mcpgo.NewToolResultText(s), nil
-		}
-		if req.GetBool("dry_run", false) {
-			return jsonResult(map[string]any{"dry_run": true, "result": result}), nil
 		}
 		return jsonResult(result), nil
 	}

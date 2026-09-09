@@ -29,6 +29,14 @@ func fakeTandoor(t *testing.T) *httptest.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/recipe/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		if r.Method != http.MethodGet {
+			if r.Method == http.MethodDelete {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"id": 1, "name": "fake"})
+			return
+		}
 		switch r.URL.Path {
 		case "/api/recipe/":
 			_ = json.NewEncoder(w).Encode(map[string]any{
@@ -54,7 +62,19 @@ func fakeTandoor(t *testing.T) *httptest.Server {
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.Method != http.MethodGet {
-			http.Error(w, `{"detail": "method not allowed"}`, http.StatusMethodNotAllowed)
+			// Writes are accepted generically so write tools can be tested
+			// end-to-end: deletes get a bare 204, everything else a minimal
+			// object (with an ID where callers extract one).
+			if r.Method == http.MethodDelete {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			if r.URL.Path == "/api/import-open-data/" {
+				// The real endpoint returns a per-datatype result map, not an object.
+				_ = json.NewEncoder(w).Encode(map[string]any{"sr_legacy": map[string]any{"total_created": 0, "total_updated": 0, "total_untouched": 0, "total_errored": 0}})
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"id": 1, "name": "fake"})
 			return
 		}
 		path := r.URL.Path
@@ -70,6 +90,11 @@ func fakeTandoor(t *testing.T) *httptest.Server {
 		switch path {
 		case "/api/user/", "/api/group/", "/api/access-token/", "/api/localization/", "/api/search-fields/", "/api/search-preference/":
 			_ = json.NewEncoder(w).Encode([]map[string]any{{"id": 1, "name": "fake"}})
+			return
+		case "/api/unit/":
+			// property_attach resolves the per-100 basis unit by name when the
+			// food has none, so the fake carries a "gram" unit.
+			_ = json.NewEncoder(w).Encode(map[string]any{"count": 1, "next": nil, "previous": nil, "results": []map[string]any{{"id": 7, "name": "gram"}}})
 			return
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"count": 0, "next": nil, "previous": nil, "results": []any{}})
@@ -219,17 +244,16 @@ func TestRegisteredTools(t *testing.T) {
 		"recipe_upload_image", "recipe_ai_properties", "recipe_delete_external",
 		"recipe_from_source_create",
 		"food_fdc_import", "food_ai_properties", "food_ensure",
-		"food_audit_inspect", "food_audit_fix", "food_find_duplicates",
+		"food_audit_inspect", "food_audit_fix", "food_audit_fix_preview", "food_find_duplicates",
 		"fdc_search", "fdc_get_food",
 	}, toolNames(t, c))
 }
 
 // TestAllToolsRespond calls every registered tool against the fake instance
-// and requires a non-error result. Read tools are called as-is (the generic
-// fake answers any GET path). Write tools are called with dry_run=true and
-// schema-generated arguments, so argument plumbing is verified without any
-// network write. Together this catches path and argument-plumbing regressions
-// across the whole catalog.
+// and requires a non-error result. The fake answers any path for any method
+// (writes included), so write tools exercise their real HTTP path and
+// argument plumbing is verified end-to-end. Together this catches path and
+// argument-plumbing regressions across the whole catalog.
 func TestAllToolsRespond(t *testing.T) {
 	c := newTestClient(t)
 	requiredArgs := map[string]map[string]any{
@@ -317,12 +341,6 @@ func TestAllToolsRespond(t *testing.T) {
 			args[k] = v
 		}
 
-		isWrite := false
-		if schema, ok := tool.InputSchema.Properties["dry_run"].(map[string]any); ok && len(schema) > 0 {
-			isWrite = true
-			args["dry_run"] = true
-		}
-
 		// Fill any schema-required argument we have not provided with a
 		// type-appropriate placeholder.
 		for _, reqName := range tool.InputSchema.Required {
@@ -358,11 +376,6 @@ func TestAllToolsRespond(t *testing.T) {
 
 		res := callTool(t, c, tool.Name, args)
 		require.Falsef(t, res.IsError, "tool %s returned error: %s", tool.Name, resultText(t, res))
-		if isWrite {
-			var body map[string]any
-			require.NoError(t, json.Unmarshal([]byte(resultText(t, res)), &body))
-			require.Equalf(t, true, body["dry_run"], "tool %s should return a dry_run preview", tool.Name)
-		}
 	}
 }
 
@@ -483,14 +496,14 @@ func TestToolFilter(t *testing.T) {
 	require.Equal(t, []string{"server_info"}, toolNames(t, c))
 }
 
-// TestReadOnlyMode verifies that WithReadOnly hides every write tool (tools
-// carrying a dry_run parameter) while keeping the read catalog intact.
+// TestReadOnlyMode verifies that WithReadOnly hides every write tool
+// (registered with write: true) while keeping the read catalog intact.
 func TestReadOnlyMode(t *testing.T) {
 	full := toolNames(t, newTestClient(t))
 	readOnly := toolNames(t, newTestClient(t, WithReadOnly()))
 
 	require.NotEmpty(t, full)
-	require.Len(t, readOnly, 91, "read-only mode should keep the read catalog (M1 + M3 read tools)")
+	require.Len(t, readOnly, 92, "read-only mode should keep the read catalog (M1 + M3 read tools)")
 
 	// Write-tool name shapes: CRUD verbs plus the M3 action verbs (import,
 	// ensure, attach, fix, auto_plan, create_entries, ...).

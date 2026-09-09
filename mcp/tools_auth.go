@@ -44,7 +44,6 @@ func registerAuthTools(d *deps) []toolDef {
 		mcpgo.WithDescription("Create a new API access token for the current user. The token value is only returned in full immediately after creation."),
 		mcpgo.WithString("scope", mcpgo.Description("Token scope (default \"read write\")")),
 		mcpgo.WithString("expires", mcpgo.Required(), mcpgo.Description("Expiry timestamp (RFC3339)")),
-		dryRunParam(),
 	)
 	createTokenHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		expiresStr, err := req.RequireString("expires")
@@ -59,7 +58,7 @@ func registerAuthTools(d *deps) []toolDef {
 			Scope:   req.GetString("scope", "read write"),
 			Expires: expires,
 		}
-		return runWrite(ctx, req, "POST", "api/access-token/", token, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Auth().CreateAccessToken(ctx, token)
 		})
 	}
@@ -67,14 +66,13 @@ func registerAuthTools(d *deps) []toolDef {
 	deleteToken := mcpgo.NewTool("auth_delete_token",
 		mcpgo.WithDescription("Delete an API access token."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Token ID")),
-		dryRunParam(),
 	)
 	deleteTokenHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/access-token/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/access-token/%d/", id), func() error {
 			return d.Tandoor.Auth().DeleteAccessToken(ctx, id)
 		})
 	}

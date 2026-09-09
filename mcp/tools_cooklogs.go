@@ -61,7 +61,6 @@ func registerCookLogTools(d *deps) []toolDef {
 		mcpgo.WithInteger("servings", mcpgo.Description("Servings cooked (default 1)")),
 		mcpgo.WithInteger("rating", mcpgo.Description("Rating 0-5")),
 		mcpgo.WithString("comment", mcpgo.Description("Comment about the cooking")),
-		dryRunParam(),
 	)
 	clCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		recipeID, err := req.RequireInt("recipe_id")
@@ -75,7 +74,7 @@ func registerCookLogTools(d *deps) []toolDef {
 		if v, err := req.RequireString("comment"); err == nil {
 			log.Comment = &v
 		}
-		return runWrite(ctx, req, "POST", "api/cook-log/", log, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.CookLogs().Create(ctx, log)
 		})
 	}

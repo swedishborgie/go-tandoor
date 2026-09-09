@@ -1,6 +1,6 @@
 // tandoor-mcp is a Model Context Protocol (MCP) server for the Tandoor
 // Recipes API. It exposes the breadth of the Tandoor API as MCP tools with
-// sensible defaults, optional parameters, and dry-run support on writes.
+// sensible defaults and optional parameters.
 //
 // In stdio mode the process speaks MCP over stdin/stdout and must never
 // write anything else to stdout; diagnostics go to stderr.

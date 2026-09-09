@@ -100,7 +100,6 @@ func registerIngredientTools(d *deps) []toolDef {
 
 	ingCreateOpts := append([]mcpgo.ToolOption{
 		mcpgo.WithDescription("Create a standalone ingredient. Note: the API only shows ingredients attached to a visible recipe's steps, so prefer creating ingredients inside a recipe (recipe_create/update); use ingredient_patch/delete on recipe ingredients. Returns the created ingredient."),
-		dryRunParam(),
 	}, ingredientWriteFields...)
 	ingCreate := mcpgo.NewTool("ingredient_create", ingCreateOpts...)
 	ingCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -108,7 +107,7 @@ func registerIngredientTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "POST", "api/ingredient/", i, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Ingredients().Create(ctx, i)
 		})
 	}
@@ -116,7 +115,6 @@ func registerIngredientTools(d *deps) []toolDef {
 	ingUpdateOpts := append([]mcpgo.ToolOption{
 		mcpgo.WithDescription("Update an ingredient (full replacement). Returns the updated ingredient."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Ingredient ID")),
-		dryRunParam(),
 	}, ingredientWriteFields...)
 	ingUpdate := mcpgo.NewTool("ingredient_update", ingUpdateOpts...)
 	ingUpdateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -128,7 +126,7 @@ func registerIngredientTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/ingredient/%d/", id), i, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Ingredients().Update(ctx, i)
 		})
 	}
@@ -136,7 +134,6 @@ func registerIngredientTools(d *deps) []toolDef {
 	ingPatchOpts := append([]mcpgo.ToolOption{
 		mcpgo.WithDescription("Partially update an ingredient. Only provided fields change."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Ingredient ID")),
-		dryRunParam(),
 	}, ingredientWriteFields...)
 	ingPatch := mcpgo.NewTool("ingredient_patch", ingPatchOpts...)
 	ingPatchHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -148,7 +145,7 @@ func registerIngredientTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
-		return runWrite(ctx, req, "PATCH", fmt.Sprintf("api/ingredient/%d/", id), i, func() (any, error) {
+		return runWrite(func() (any, error) {
 			return d.Tandoor.Ingredients().Patch(ctx, i)
 		})
 	}
@@ -156,14 +153,13 @@ func registerIngredientTools(d *deps) []toolDef {
 	ingDelete := mcpgo.NewTool("ingredient_delete",
 		mcpgo.WithDescription("Delete an ingredient. Fails if it is still in use."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Ingredient ID")),
-		dryRunParam(),
 	)
 	ingDeleteHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		id, err := req.RequireInt("id")
 		if err != nil {
 			return errResult(err), nil
 		}
-		return deleteResult(ctx, req, fmt.Sprintf("api/ingredient/%d/", id), func() error {
+		return deleteResult(fmt.Sprintf("api/ingredient/%d/", id), func() error {
 			return d.Tandoor.Ingredients().Delete(ctx, id)
 		})
 	}

@@ -132,7 +132,7 @@ func serverInstructions(d *deps, toolCount int) string {
 	if d.Cfg.ReadOnly {
 		b.WriteString("Read-only mode: write tools are not registered. ")
 	} else {
-		b.WriteString("Writes: pass dry_run=true first when unsure. ")
+		b.WriteString("Write tools perform real writes; destructive ones are annotated for client approval. ")
 	}
 	if d.FDC == nil {
 		b.WriteString("FDC_API_KEY is not set, so fdc_* tools return an error until it is configured. ")
