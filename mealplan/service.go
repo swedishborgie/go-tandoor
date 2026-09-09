@@ -87,13 +87,19 @@ func (s *Service) ICAL(ctx context.Context, opts *pagination.ListOptions) (strin
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("API error %d", resp.StatusCode)
-	}
-
 	var buf strings.Builder
 	if _, err := io.Copy(&buf, resp.Body); err != nil {
 		return "", err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		// Include a body snippet: some proxies answer blocks with HTML or
+		// truncated JSON that is not parseable, and the raw text is the only
+		// diagnostic available.
+		snip := buf.String()
+		if len(snip) > 200 {
+			snip = snip[:200] + "..."
+		}
+		return "", fmt.Errorf("API error %d: %s", resp.StatusCode, strings.TrimSpace(snip))
 	}
 	return buf.String(), nil
 }
@@ -202,7 +208,7 @@ func NewAutoPlanService(e executor.Executor) *AutoPlanService {
 // Plan creates a meal plan automatically based on keywords and date range.
 func (s *AutoPlanService) Plan(ctx context.Context, req *AutoMealPlanRequest) (*AutoMealPlanRequest, error) {
 	var result AutoMealPlanRequest
-	if err := s.exec.DoJSON(ctx, "POST", "api/auto-meal-plan/", req, &result); err != nil {
+	if err := s.exec.DoJSON(ctx, "POST", "api/auto-plan/", req, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil

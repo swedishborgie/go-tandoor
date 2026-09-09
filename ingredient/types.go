@@ -12,7 +12,7 @@ type Ingredient struct {
 	UnitID        interface{}       `json:"unit,omitempty"`
 	Food          *Food             `json:"-"`
 	Unit          *Unit             `json:"-"`
-	Amount        float64           `json:"amount,omitempty"`
+	Amount        *float64          `json:"amount,omitempty"`
 	Note          string            `json:"note,omitempty"`
 	Order         int               `json:"order,omitempty"`
 	IsHeader      bool              `json:"is_header,omitempty"`
@@ -20,6 +20,13 @@ type Ingredient struct {
 	OriginalText  string            `json:"original_text,omitempty"`
 	Checked       bool              `json:"checked,omitempty"`
 	UsedInRecipes []RecipeReference `json:"used_in_recipes,omitempty"`
+
+	// ForceRefs, when true, makes MarshalJSON always emit the food and unit
+	// keys (as null when unset). Tandoor's IngredientSerializer declares
+	// both fields required (allow_null), so create/update payloads must
+	// include them even when the ingredient has no food or unit; partial
+	// updates (PATCH) may omit them.
+	ForceRefs bool `json:"-"`
 }
 
 // UnmarshalJSON custom unmarshals Ingredient to handle food/unit as int or object.
@@ -28,7 +35,7 @@ func (i *Ingredient) UnmarshalJSON(data []byte) error {
 		ID            int               `json:"id,omitempty"`
 		Food          json.RawMessage   `json:"food,omitempty"`
 		Unit          json.RawMessage   `json:"unit,omitempty"`
-		Amount        float64           `json:"amount,omitempty"`
+		Amount        *float64          `json:"amount"`
 		Note          string            `json:"note,omitempty"`
 		Order         int               `json:"order,omitempty"`
 		IsHeader      bool              `json:"is_header,omitempty"`
@@ -94,11 +101,13 @@ func (i Ingredient) MarshalJSON() ([]byte, error) {
 		if err == nil {
 			a.Food = foodID
 		}
-	} else if id, ok := i.FoodID.(int); ok {
+	} else if id, ok := i.FoodID.(int); ok && id != 0 {
 		foodID, err := json.Marshal(id)
 		if err == nil {
 			a.Food = foodID
 		}
+	} else if i.ForceRefs {
+		a.Food = json.RawMessage("null")
 	}
 	// marshal unit as ID
 	if i.Unit != nil {
@@ -106,11 +115,13 @@ func (i Ingredient) MarshalJSON() ([]byte, error) {
 		if err == nil {
 			a.Unit = unitID
 		}
-	} else if id, ok := i.UnitID.(int); ok {
+	} else if id, ok := i.UnitID.(int); ok && id != 0 {
 		unitID, err := json.Marshal(id)
 		if err == nil {
 			a.Unit = unitID
 		}
+	} else if i.ForceRefs {
+		a.Unit = json.RawMessage("null")
 	}
 	return json.Marshal(a)
 }

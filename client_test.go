@@ -145,6 +145,18 @@ func TestNewRequest(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, req.Header.Get("Authorization"))
 	})
+
+	t.Run("explicit trailing slash is preserved", func(t *testing.T) {
+		req, err := c.newRequest(context.Background(), "GET", "api/food/1/", nil)
+		require.NoError(t, err)
+		assert.Equal(t, "/api/food/1/", req.URL.Path)
+	})
+
+	t.Run("slash-less path is used verbatim (api/share-link/<pk>)", func(t *testing.T) {
+		req, err := c.newRequest(context.Background(), "GET", "api/share-link/1", nil)
+		require.NoError(t, err)
+		assert.Equal(t, "/api/share-link/1", req.URL.Path)
+	})
 }
 
 func TestDo(t *testing.T) {

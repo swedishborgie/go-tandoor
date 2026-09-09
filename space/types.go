@@ -49,10 +49,10 @@ type Space struct {
 	LogoColorSVG *UserFile `json:"logo_color_svg"`
 
 	// AI settings
-	AICreditsMonthly     int  `json:"ai_credits_monthly"`
-	AICreditsBalance     int  `json:"ai_credits_balance"`
-	AIMonthlyCreditsUsed int  `json:"ai_monthly_credits_used"`
-	AIEnabled            bool `json:"ai_enabled"`
+	AICreditsMonthly     int     `json:"ai_credits_monthly"`
+	AICreditsBalance     float64 `json:"ai_credits_balance"`
+	AIMonthlyCreditsUsed int     `json:"ai_monthly_credits_used"`
+	AIEnabled            bool    `json:"ai_enabled"`
 
 	SpaceSetupCompleted     bool `json:"space_setup_completed"`
 	HouseholdSetupCompleted bool `json:"household_setup_completed"`
@@ -160,10 +160,15 @@ type InviteLink struct {
 
 // InviteLinkRequest is the request body for creating an invite link.
 type InviteLinkRequest struct {
-	Email        string `json:"email"`
+	Email string `json:"email"`
+	// GroupID is the group invited users get (required; see group_list).
 	GroupID      int    `json:"group_id"`
 	HouseholdID  *int   `json:"household_id,omitempty"`
 	Reusable     bool   `json:"reusable"`
 	InternalNote string `json:"internal_note,omitempty"`
-	ValidDays    int    `json:"valid_days"`
+	// ValidUntil is the expiry date (YYYY-MM-DD). The API field is a plain
+	// date, so it is kept as a string rather than time.Time (whose JSON
+	// form is a datetime the serializer rejects). Nil uses the server
+	// default.
+	ValidUntil *string `json:"valid_until,omitempty"`
 }

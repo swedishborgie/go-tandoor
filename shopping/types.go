@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/swedishborgie/go-tandoor/food"
+	"github.com/swedishborgie/go-tandoor/idref"
 	"github.com/swedishborgie/go-tandoor/recipe"
 	"github.com/swedishborgie/go-tandoor/unit"
 )
@@ -15,6 +16,24 @@ type List struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 	Color       string `json:"color,omitempty"`
+}
+
+// MarshalJSON marshals as a bare integer when only an ID is set, otherwise
+// as the full object (mirrors Tandoor's writable nested handling).
+func (l *List) MarshalJSON() ([]byte, error) {
+	type plain List
+	return idref.MarshalJSON(l.ID, l.Name, plain(*l))
+}
+
+// UnmarshalJSON accepts either a bare integer or the full object.
+func (l *List) UnmarshalJSON(data []byte) error {
+	type plain List
+	var p plain
+	if err := idref.UnmarshalJSON(data, &p.ID, &p); err != nil {
+		return err
+	}
+	*l = List(p)
+	return nil
 }
 
 // ListEntry is an individual item in a shopping list.
@@ -33,8 +52,8 @@ type ListEntry struct {
 	// ListRecipeData is the shopping list recipe reference (read-only).
 	ListRecipeData *ListRecipe `json:"list_recipe_data,omitempty"`
 
-	// Amount is the quantity.
-	Amount float64 `json:"amount,omitempty"`
+	// Amount is the quantity (nil to leave unchanged on update).
+	Amount *float64 `json:"amount,omitempty"`
 
 	// Note is a free-text note.
 	Note string `json:"note,omitempty"`
@@ -51,8 +70,8 @@ type ListEntry struct {
 	// OriginalText is the raw ingredient text.
 	OriginalText string `json:"original_text,omitempty"`
 
-	// Checked marks the item as purchased.
-	Checked bool `json:"checked,omitempty"`
+	// Checked marks the item as purchased (nil to leave unchanged on update).
+	Checked *bool `json:"checked,omitempty"`
 
 	// CompletedAt is when the item was checked off.
 	CompletedAt *time.Time `json:"completed_at,omitempty"`
@@ -115,8 +134,8 @@ type ListEntryBulkCreate struct {
 
 // ListEntryCreate is the simplified entry for bulk create.
 type ListEntryCreate struct {
-	FoodID *int    `json:"food"`
-	UnitID *int    `json:"unit"`
-	Amount float64 `json:"amount"`
-	Note   string  `json:"note"`
+	FoodID       *int    `json:"food_id"`
+	UnitID       *int    `json:"unit_id"`
+	IngredientID *int    `json:"ingredient_id"`
+	Amount       float64 `json:"amount"`
 }

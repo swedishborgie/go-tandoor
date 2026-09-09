@@ -52,16 +52,16 @@ func TestRecipeService_Flat(t *testing.T) {
 		assert.Equal(t, "GET", r.Method)
 		assert.Contains(t, r.URL.Path, "/api/recipe/flat/")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"count":1,"results":[{"id":1,"name":"Pizza","image":"http://example.com/img.jpg"}]}`))
+		w.Write([]byte(`[{"id":1,"name":"Pizza","image":"http://example.com/img.jpg"}]`))
 	}))
 	defer server.Close()
 
 	mock := testutil.NewMockExecutor(server.URL)
 
-	page, err := NewService(mock).Flat(context.Background(), nil)
+	flat, err := NewService(mock).Flat(context.Background(), nil)
 	require.NoError(t, err)
-	assert.Equal(t, "Pizza", page.Results[0].Name)
-	assert.Equal(t, "http://example.com/img.jpg", page.Results[0].Image)
+	assert.Equal(t, "Pizza", flat[0].Name)
+	assert.Equal(t, "http://example.com/img.jpg", flat[0].Image)
 }
 
 func TestRecipeService_Get(t *testing.T) {

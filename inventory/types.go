@@ -1,7 +1,12 @@
 // Package inventory contains types for Tandoor Inventory resources.
 package inventory
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+
+	"github.com/swedishborgie/go-tandoor/idref"
+)
 
 // Location represents a physical location for storing food
 // (e.g. pantry, freezer, refrigerator).
@@ -10,6 +15,47 @@ type Location struct {
 	Name      string `json:"name,omitempty"`
 	IsFreezer bool   `json:"is_freezer,omitempty"`
 	Household *int   `json:"household,omitempty"`
+}
+
+// MarshalJSON marshals as a bare integer when only an ID is set, otherwise
+// as the full object (mirrors Tandoor's writable nested handling).
+func (l *Location) MarshalJSON() ([]byte, error) {
+	type plain Location
+	return idref.MarshalJSON(l.ID, l.Name, plain(*l))
+}
+
+// UnmarshalJSON accepts either a bare integer or the full object. The
+// household field arrives as a nested object in responses but is written as
+// a bare ID, so it is handled separately.
+func (l *Location) UnmarshalJSON(data []byte) error {
+	l.Household = nil
+	if id, ok := idref.AsID(data); ok {
+		l.ID = id
+		return nil
+	}
+	var aux struct {
+		ID        int             `json:"id,omitempty"`
+		Name      string          `json:"name,omitempty"`
+		IsFreezer bool            `json:"is_freezer,omitempty"`
+		Household json.RawMessage `json:"household"`
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	l.ID, l.Name, l.IsFreezer = aux.ID, aux.Name, aux.IsFreezer
+	if len(aux.Household) > 0 {
+		if id, ok := idref.AsID(aux.Household); ok {
+			l.Household = &id
+		} else {
+			var h struct {
+				ID int `json:"id"`
+			}
+			if err := json.Unmarshal(aux.Household, &h); err == nil && h.ID > 0 {
+				l.Household = &h.ID
+			}
+		}
+	}
+	return nil
 }
 
 // Entry represents a tracked food item in inventory.
@@ -48,6 +94,47 @@ type Entry struct {
 
 	// CreatedBy is the user who created the entry (read-only).
 	CreatedBy int `json:"created_by,omitempty"`
+}
+
+// UnmarshalJSON accepts food and unit as bare IDs or full objects (the API
+// returns nested objects); writes send bare IDs.
+func (e *Entry) UnmarshalJSON(data []byte) error {
+	type plain Entry
+	var p plain
+	aux := struct {
+		*plain
+		Food json.RawMessage `json:"food"`
+		Unit json.RawMessage `json:"unit"`
+	}{plain: &p}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	*e = Entry(p)
+	if id, ok := refID(aux.Food); ok {
+		e.Food = &id
+	}
+	if id, ok := refID(aux.Unit); ok {
+		e.Unit = &id
+	}
+	return nil
+}
+
+// refID decodes a reference field that may be a bare integer or a nested
+// object with an id; ok is false for null/missing.
+func refID(raw json.RawMessage) (int, bool) {
+	if len(raw) == 0 || string(raw) == "null" {
+		return 0, false
+	}
+	if id, ok := idref.AsID(raw); ok {
+		return id, true
+	}
+	var o struct {
+		ID int `json:"id"`
+	}
+	if err := json.Unmarshal(raw, &o); err != nil {
+		return 0, false
+	}
+	return o.ID, true
 }
 
 // Log records a change to an inventory entry.

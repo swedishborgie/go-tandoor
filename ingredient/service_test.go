@@ -25,7 +25,7 @@ func TestIngredientService_List(t *testing.T) {
 	page, err := NewService(mock).List(context.Background(), nil)
 	require.NoError(t, err)
 	assert.Equal(t, 2, page.Count)
-	assert.InEpsilon(t, 2.5, page.Results[0].Amount, 1e-9)
+	assert.InEpsilon(t, 2.5, *page.Results[0].Amount, 1e-9)
 }
 
 func TestIngredientService_Get(t *testing.T) {
@@ -54,7 +54,8 @@ func TestIngredientService_Create(t *testing.T) {
 
 	mock := testutil.NewMockExecutor(server.URL)
 
-	i, err := NewService(mock).Create(context.Background(), &Ingredient{Amount: 0.5})
+	amt := 0.5
+	i, err := NewService(mock).Create(context.Background(), &Ingredient{Amount: &amt})
 	require.NoError(t, err)
 	assert.Equal(t, 10, i.ID)
 }
@@ -69,9 +70,10 @@ func TestIngredientService_Update(t *testing.T) {
 
 	mock := testutil.NewMockExecutor(server.URL)
 
-	i, err := NewService(mock).Update(context.Background(), &Ingredient{ID: 1, Amount: 3.0})
+	amt := 3.0
+	i, err := NewService(mock).Update(context.Background(), &Ingredient{ID: 1, Amount: &amt})
 	require.NoError(t, err)
-	assert.InEpsilon(t, 3.0, i.Amount, 1e-9)
+	assert.InEpsilon(t, 3.0, *i.Amount, 1e-9)
 }
 
 func TestIngredientService_Patch(t *testing.T) {

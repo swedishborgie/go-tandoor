@@ -27,7 +27,7 @@ func TestCookLogService_List(t *testing.T) {
 	page, err := NewService(mock).List(context.Background(), nil)
 	require.NoError(t, err)
 	assert.Equal(t, 1, page.Count)
-	assert.Equal(t, 4, page.Results[0].Servings)
+	assert.Equal(t, 4, *page.Results[0].Servings)
 }
 
 func TestCookLogService_Get(t *testing.T) {
@@ -43,7 +43,7 @@ func TestCookLogService_Get(t *testing.T) {
 
 	log, err := NewService(mock).Get(context.Background(), 1)
 	require.NoError(t, err)
-	assert.Equal(t, "Delicious!", log.Comment)
+	assert.Equal(t, "Delicious!", *log.Comment)
 }
 
 func TestCookLogService_Create(t *testing.T) {
@@ -58,7 +58,7 @@ func TestCookLogService_Create(t *testing.T) {
 
 	log, err := NewService(mock).Create(context.Background(), nil)
 	require.NoError(t, err)
-	assert.Equal(t, 2, log.Servings)
+	assert.Equal(t, 2, *log.Servings)
 }
 
 func TestCookLogService_Update(t *testing.T) {
@@ -73,7 +73,7 @@ func TestCookLogService_Update(t *testing.T) {
 
 	log, err := NewService(mock).Update(context.Background(), &CookLog{ID: 1})
 	require.NoError(t, err)
-	assert.Equal(t, 6, log.Servings)
+	assert.Equal(t, 6, *log.Servings)
 }
 
 func TestCookLogService_Patch(t *testing.T) {
@@ -491,16 +491,16 @@ func TestSearchFieldsService_List(t *testing.T) {
 		assert.Equal(t, "GET", r.Method)
 		assert.Equal(t, "/api/search-fields/", r.URL.Path)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"count":2,"results":[{"id":1,"name":"Name","field":"name"},{"id":2,"name":"Description","field":"description"}]}`))
+		w.Write([]byte(`[{"id":1,"name":"Name","field":"name"},{"id":2,"name":"Description","field":"description"}]`))
 	}))
 	defer server.Close()
 
 	mock := testutil.NewMockExecutor(server.URL)
 
-	page, err := NewSearchFieldsService(mock).List(context.Background(), nil)
+	fields, err := NewSearchFieldsService(mock).List(context.Background(), nil)
 	require.NoError(t, err)
-	assert.Equal(t, 2, page.Count)
-	assert.Equal(t, "Name", page.Results[0].Name)
+	assert.Len(t, fields, 2)
+	assert.Equal(t, "Name", fields[0].Name)
 }
 
 func TestSearchFieldsService_Get(t *testing.T) {
@@ -526,16 +526,16 @@ func TestSearchPreferenceService_List(t *testing.T) {
 		assert.Equal(t, "GET", r.Method)
 		assert.Equal(t, "/api/search-preference/", r.URL.Path)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"count":1,"results":[{"search":"plain","lookup":false,"trigram_threshold":0.2}]}`))
+		w.Write([]byte(`[{"search":"plain","lookup":false,"trigram_threshold":0.2}]`))
 	}))
 	defer server.Close()
 
 	mock := testutil.NewMockExecutor(server.URL)
 
-	page, err := NewSearchPreferenceService(mock).List(context.Background(), nil)
+	prefs, err := NewSearchPreferenceService(mock).List(context.Background(), nil)
 	require.NoError(t, err)
-	assert.Equal(t, 1, page.Count)
-	assert.Equal(t, "plain", page.Results[0].Search)
+	assert.Len(t, prefs, 1)
+	assert.Equal(t, "plain", prefs[0].Search)
 }
 
 func TestSearchPreferenceService_Get(t *testing.T) {

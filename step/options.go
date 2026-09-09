@@ -3,6 +3,7 @@ package step
 
 import (
 	"net/url"
+	"strconv"
 
 	"github.com/swedishborgie/go-tandoor/pagination"
 )
@@ -16,6 +17,9 @@ type ListOptions struct {
 // Values builds url.Values.
 func (o ListOptions) Values() url.Values {
 	v := o.ListOptions.Values()
+	if o.RecipeID != 0 {
+		v.Set("recipe", strconv.Itoa(o.RecipeID))
+	}
 	return v
 }
 

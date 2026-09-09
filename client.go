@@ -163,19 +163,23 @@ func WithUserAgent(userAgent string) ClientOption {
 // The path is joined with the client's base URL. If body is non-nil it
 // is JSON-encoded and the Content-Type header is set.
 // The Authorization header is set if an access token is configured.
+// Callers pass an explicit trailing slash for DRF router endpoints (the
+// convention throughout this client); a path without a trailing slash is
+// used verbatim — Tandoor has a few slash-less API URLs, e.g.
+// api/share-link/<pk>.
 // newRequest returns the newRequest service.
 func (c *Client) newRequest(ctx context.Context, method string, subPath string, body any) (*http.Request, error) {
 	// Split query string from the path if present.
 	subPath, query := splitQuery(subPath)
 
-	// Build the path, normalizing separators and ensuring a trailing slash
-	// (DRF requires trailing slashes on all endpoints).
+	// Build the path, normalizing separators. path.Join strips trailing
+	// slashes, so remember the caller's intent and add it back.
+	keepTrailingSlash := strings.HasSuffix(subPath, "/")
 	p := "/"
 	if subPath != "" {
 		p = path.Join(p, subPath)
 	}
-	// path.Join strips trailing slashes, so add one back.
-	if !strings.HasSuffix(p, "/") {
+	if keepTrailingSlash && !strings.HasSuffix(p, "/") {
 		p += "/"
 	}
 
@@ -217,11 +221,12 @@ func (c *Client) newRequest(ctx context.Context, method string, subPath string, 
 func (c *Client) newRequestNoAuth(ctx context.Context, method string, subPath string, body any) (*http.Request, error) {
 	subPath, query := splitQuery(subPath)
 
+	keepTrailingSlash := strings.HasSuffix(subPath, "/")
 	p := "/"
 	if subPath != "" {
 		p = path.Join(p, subPath)
 	}
-	if !strings.HasSuffix(p, "/") {
+	if keepTrailingSlash && !strings.HasSuffix(p, "/") {
 		p += "/"
 	}
 
@@ -448,9 +453,19 @@ func (c *Client) RecipeBooks() *recipebook.Service {
 	return recipebook.NewService(c)
 }
 
+// RecipeBookEntries returns the recipe book entry service.
+func (c *Client) RecipeBookEntries() *recipebook.EntryService {
+	return recipebook.NewEntryService(c)
+}
+
 // Properties returns the Properties service.
 func (c *Client) Properties() *property.Service {
 	return property.NewService(c)
+}
+
+// PropertyTypes returns the property type service.
+func (c *Client) PropertyTypes() *property.TypeService {
+	return property.NewTypeService(c)
 }
 
 // Inventory returns the Inventory service.
@@ -461,6 +476,16 @@ func (c *Client) Inventory() *inventory.Service {
 // InventoryLocations returns the InventoryLocations service.
 func (c *Client) InventoryLocations() *inventory.LocationService {
 	return inventory.NewLocationService(c)
+}
+
+// InventoryEntries returns the inventory entry service.
+func (c *Client) InventoryEntries() *inventory.EntryService {
+	return inventory.NewEntryService(c)
+}
+
+// InventoryLogs returns the inventory log service.
+func (c *Client) InventoryLogs() *inventory.LogService {
+	return inventory.NewLogService(c)
 }
 
 // Storages returns the Storages service.

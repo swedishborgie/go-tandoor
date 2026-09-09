@@ -1,12 +1,17 @@
 // Package food contains types for Tandoor Food resources.
 package food
 
-import "github.com/swedishborgie/go-tandoor/property"
+import (
+	"github.com/swedishborgie/go-tandoor/idref"
+	"github.com/swedishborgie/go-tandoor/property"
+)
 
 // Food is a food item that can be used in recipes and shopping lists.
 type Food struct {
-	ID                   int                 `json:"id,omitempty"`
-	Name                 string              `json:"name"`
+	ID int `json:"id,omitempty"`
+	// Name omits when empty so partial updates (PATCH) do not send a blank
+	// name; Tandoor rejects blank names on create/update.
+	Name                 string              `json:"name,omitempty"`
 	PluralName           string              `json:"plural_name,omitempty"`
 	Description          string              `json:"description,omitempty"`
 	Shopping             string              `json:"shopping,omitempty"`
@@ -43,6 +48,24 @@ type Shopping struct {
 	ID             int    `json:"id"`
 	Name           string `json:"name"`
 	IgnoreShopping bool   `json:"ignore_shopping"`
+}
+
+// MarshalJSON marshals as a bare integer when only an ID is set, otherwise
+// as the full object (mirrors Tandoor's writable nested handling).
+func (s *Shopping) MarshalJSON() ([]byte, error) {
+	type plain Shopping
+	return idref.MarshalJSON(s.ID, s.Name, plain(*s))
+}
+
+// UnmarshalJSON accepts either a bare integer or the full object.
+func (s *Shopping) UnmarshalJSON(data []byte) error {
+	type plain Shopping
+	var p plain
+	if err := idref.UnmarshalJSON(data, &p.ID, &p); err != nil {
+		return err
+	}
+	*s = Shopping(p)
+	return nil
 }
 
 // ShoppingUpdate requests a shopping update for a food.

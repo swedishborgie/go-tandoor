@@ -102,7 +102,7 @@ func TestListEntryService_List(t *testing.T) {
 	page, err := NewEntryService(mock).List(context.Background(), nil)
 	require.NoError(t, err)
 	assert.Equal(t, 1, page.Count)
-	assert.InEpsilon(t, 2.5, page.Results[0].Amount, 1e-9)
+	assert.InEpsilon(t, 2.5, *page.Results[0].Amount, 1e-9)
 }
 
 func TestListEntryService_BulkUpdate(t *testing.T) {

@@ -11,12 +11,12 @@ import (
 type CookLog struct {
 	ID        int         `json:"id"`
 	Recipe    *int        `json:"recipe"`
-	Servings  int         `json:"servings"`
-	Rating    *int        `json:"rating"`
-	Comment   string      `json:"comment"`
-	CreatedBy *space.User `json:"created_by"`
-	CreatedAt string      `json:"created_at"`
-	UpdatedAt string      `json:"updated_at"`
+	Servings  *int        `json:"servings,omitempty"`
+	Rating    *int        `json:"rating,omitempty"`
+	Comment   *string     `json:"comment,omitempty"`
+	CreatedBy *space.User `json:"created_by,omitempty"`
+	CreatedAt string      `json:"created_at,omitempty"`
+	UpdatedAt string      `json:"updated_at,omitempty"`
 }
 
 // ViewLog represents a log entry for when a recipe was viewed.
@@ -24,10 +24,10 @@ type CookLog struct {
 // Endpoints: GET/POST api/view-log/ GET/PUT/PATCH/DELETE api/view-log/<id>/
 // Note: create merges duplicate views within 5 minutes.
 type ViewLog struct {
-	ID        int         `json:"id"`
-	Recipe    *int        `json:"recipe"`
-	CreatedBy *space.User `json:"created_by"`
-	CreatedAt string      `json:"created_at"`
+	ID        int    `json:"id"`
+	Recipe    *int   `json:"recipe"`
+	CreatedBy *int   `json:"created_by"`
+	CreatedAt string `json:"created_at"`
 }
 
 // UserFile represents a file uploaded by a user.

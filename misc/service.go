@@ -402,17 +402,18 @@ func NewSearchFieldsService(e executor.Executor) *SearchFieldsService {
 	return &SearchFieldsService{exec: e}
 }
 
-// List returns a paginated list of available search fields.
-func (s *SearchFieldsService) List(ctx context.Context, opts *pagination.ListOptions) (*pagination.Paginated[SearchField], error) {
+// List returns the available search fields. The endpoint responds with a
+// flat array, not a paginated envelope.
+func (s *SearchFieldsService) List(ctx context.Context, opts *pagination.ListOptions) ([]SearchField, error) {
 	path := "api/search-fields/"
 	if opts != nil && opts.QueryString() != "" {
 		path += "?" + opts.QueryString()
 	}
-	var page pagination.Paginated[SearchField]
-	if err := s.exec.DoJSON(ctx, "GET", path, nil, &page); err != nil {
+	var result []SearchField
+	if err := s.exec.DoJSON(ctx, "GET", path, nil, &result); err != nil {
 		return nil, err
 	}
-	return &page, nil
+	return result, nil
 }
 
 // Get retrieves a single search field by ID.
@@ -434,17 +435,18 @@ func NewSearchPreferenceService(e executor.Executor) *SearchPreferenceService {
 	return &SearchPreferenceService{exec: e}
 }
 
-// List returns a paginated list of search preferences.
-func (s *SearchPreferenceService) List(ctx context.Context, opts *pagination.ListOptions) (*pagination.Paginated[SearchPreference], error) {
+// List returns the search preferences. The endpoint responds with a flat
+// array, not a paginated envelope.
+func (s *SearchPreferenceService) List(ctx context.Context, opts *pagination.ListOptions) ([]SearchPreference, error) {
 	path := "api/search-preference/"
 	if opts != nil && opts.QueryString() != "" {
 		path += "?" + opts.QueryString()
 	}
-	var page pagination.Paginated[SearchPreference]
-	if err := s.exec.DoJSON(ctx, "GET", path, nil, &page); err != nil {
+	var result []SearchPreference
+	if err := s.exec.DoJSON(ctx, "GET", path, nil, &result); err != nil {
 		return nil, err
 	}
-	return &page, nil
+	return result, nil
 }
 
 // Get retrieves a single search preference by ID.

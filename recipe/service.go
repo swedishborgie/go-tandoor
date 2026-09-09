@@ -58,17 +58,18 @@ func (s *Service) ListAll(ctx context.Context, opts *ListOptions) ([]Recipe, err
 	return pagination.CollectAll(ctx, firstPage, nextFn)
 }
 
-// Flat returns a paginated list of flat recipes (id, name, image).
-func (s *Service) Flat(ctx context.Context, opts *ListOptions) (*pagination.Paginated[Flat], error) {
+// Flat returns a list of flat recipes (id, name, image). The endpoint
+// responds with a flat array, not a paginated envelope.
+func (s *Service) Flat(ctx context.Context, opts *ListOptions) ([]Flat, error) {
 	path := "api/recipe/flat/"
 	if opts != nil && opts.QueryString() != "" {
 		path += "?" + opts.QueryString()
 	}
-	var page pagination.Paginated[Flat]
-	if err := s.exec.DoJSON(ctx, "GET", path, nil, &page); err != nil {
+	var result []Flat
+	if err := s.exec.DoJSON(ctx, "GET", path, nil, &result); err != nil {
 		return nil, err
 	}
-	return &page, nil
+	return result, nil
 }
 
 // Get retrieves a single recipe by ID.

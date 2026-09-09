@@ -3,6 +3,8 @@ package recipe
 
 import (
 	"time"
+
+	"github.com/swedishborgie/go-tandoor/idref"
 )
 
 // Recipe is the full recipe model.
@@ -66,7 +68,7 @@ type Overview struct {
 	Name         string         `json:"name"`
 	Description  string         `json:"description"`
 	Image        string         `json:"image"`
-	Keywords     []KeywordLabel `json:"keywords"`
+	Keywords     []KeywordLabel `json:"keywords,omitempty"`
 	WorkingTime  int            `json:"working_time"`
 	WaitingTime  int            `json:"waiting_time"`
 	CreatedBy    User           `json:"created_by"`
@@ -80,6 +82,24 @@ type Overview struct {
 	LastCooked   time.Time      `json:"last_cooked"`
 	New          bool           `json:"new"`
 	Recent       string         `json:"recent"`
+}
+
+// MarshalJSON marshals as a bare integer when only an ID is set, otherwise
+// as the full object (mirrors Tandoor's writable nested handling).
+func (o *Overview) MarshalJSON() ([]byte, error) {
+	type plain Overview
+	return idref.MarshalJSON(o.ID, o.Name, plain(*o))
+}
+
+// UnmarshalJSON accepts either a bare integer or the full object.
+func (o *Overview) UnmarshalJSON(data []byte) error {
+	type plain Overview
+	var p plain
+	if err := idref.UnmarshalJSON(data, &p.ID, &p); err != nil {
+		return err
+	}
+	*o = Overview(p)
+	return nil
 }
 
 // BatchUpdate performs batch operations on multiple recipes.
@@ -199,6 +219,24 @@ type User struct {
 	IsStaff     bool   `json:"is_staff"`
 	IsSuperuser bool   `json:"is_superuser"`
 	IsActive    bool   `json:"is_active"`
+}
+
+// MarshalJSON marshals as a bare integer when only an ID is set, otherwise
+// as the full user object (mirrors Tandoor's writable nested handling).
+func (u *User) MarshalJSON() ([]byte, error) {
+	type plain User
+	return idref.MarshalJSON(u.ID, u.Username, plain(*u))
+}
+
+// UnmarshalJSON accepts either a bare integer or the full user object.
+func (u *User) UnmarshalJSON(data []byte) error {
+	type plain User
+	var p plain
+	if err := idref.UnmarshalJSON(data, &p.ID, &p); err != nil {
+		return err
+	}
+	*u = User(p)
+	return nil
 }
 
 // NutritionInformation holds nutrition data for a recipe.

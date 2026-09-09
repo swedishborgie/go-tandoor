@@ -171,7 +171,7 @@ func TestMealTypeService_Delete(t *testing.T) {
 func TestAutoPlanService_Plan(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "POST", r.Method)
-		assert.Equal(t, "/api/auto-meal-plan/", r.URL.Path)
+		assert.Equal(t, "/api/auto-plan/", r.URL.Path)
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"start_date":"2024-01-01T00:00:00Z","end_date":"2024-01-07T00:00:00Z","meal_type_id":1}`))
 	}))
