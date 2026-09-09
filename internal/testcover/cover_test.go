@@ -8,6 +8,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// restoreGoverdir snapshots the ambient GOCOVERDIR (go test -cover sets one
+// internally since Go 1.20) and restores it after the test.
+func restoreGoverdir(t *testing.T) string {
+	t.Helper()
+	prev := os.Getenv("GOCOVERDIR")
+	t.Cleanup(func() {
+		if prev == "" {
+			os.Unsetenv("GOCOVERDIR")
+		} else {
+			os.Setenv("GOCOVERDIR", prev)
+		}
+	})
+	return prev
+}
+
 func TestCoverBuildArgsDisabled(t *testing.T) {
 	t.Setenv(OutEnv, "")
 	require.False(t, Enabled())
@@ -22,15 +37,16 @@ func TestCoverBuildArgsEnabled(t *testing.T) {
 
 func TestSetupDisabledIsNoop(t *testing.T) {
 	t.Setenv(OutEnv, "")
+	prev := restoreGoverdir(t)
 	finish := Setup("unit-test", ".")
-	require.Empty(t, os.Getenv("GOCOVERDIR"))
+	require.Equal(t, prev, os.Getenv("GOCOVERDIR"), "Setup must not touch GOCOVERDIR when disabled")
 	finish() // must not panic
 }
 
 func TestSetupEnabledWritesProfile(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "coverage.txt")
 	t.Setenv(OutEnv, out)
-	t.Cleanup(func() { os.Unsetenv("GOCOVERDIR") })
+	restoreGoverdir(t)
 	finish := Setup("unit-test", ".")
 	require.NotEmpty(t, os.Getenv("GOCOVERDIR"))
 	// No subprocess ran, so the covdata dir is empty and textfmt writes an
