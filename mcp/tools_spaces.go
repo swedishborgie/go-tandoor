@@ -12,8 +12,8 @@ import (
 
 func registerSpaceTools(d *deps) []toolDef {
 	// --- spaces ---
-	spaceListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List spaces in the Tandoor instance. Supports text query, ordering, and pagination.")}
-	spaceListOpts = append(spaceListOpts, baselineListParams(d)...)
+	spaceListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List spaces in the Tandoor instance. Supports text query, ordering, and pagination. Use all=true for the full set; jq projects fields to keep output small.")}
+	spaceListOpts = append(spaceListOpts, baselineListParams()...)
 	spaceList := mcpgo.NewTool("space_list", spaceListOpts...)
 	spaceListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		opts := &space.ListOptions{ListOptions: baseListOptions(req, d)}
@@ -59,7 +59,7 @@ func registerSpaceTools(d *deps) []toolDef {
 
 	// --- users ---
 	userList := mcpgo.NewTool("user_list",
-		mcpgo.WithDescription("List users. Optionally restrict to members of the given space IDs (space_ids)."),
+		mcpgo.WithDescription("List users. Optionally restrict to members of the given space IDs (space_ids). Returns the full set as a single array."),
 		mcpgo.WithArray("space_ids", mcpgo.WithIntegerItems(), mcpgo.Description("Only return users in these spaces (filter_list)")),
 		jqParam(),
 	)
@@ -90,7 +90,7 @@ func registerSpaceTools(d *deps) []toolDef {
 
 	// --- groups ---
 	groupList := mcpgo.NewTool("group_list",
-		mcpgo.WithDescription("List permission groups."),
+		mcpgo.WithDescription("List permission groups. Returns the full set as a single array."),
 		jqParam(),
 	)
 	groupListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -119,8 +119,8 @@ func registerSpaceTools(d *deps) []toolDef {
 	}
 
 	// --- households ---
-	hhListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List households. Supports text query, ordering, and pagination.")}
-	hhListOpts = append(hhListOpts, baselineListParams(d)...)
+	hhListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List households. Supports text query, ordering, and pagination. Use all=true for the full set; jq projects fields to keep output small.")}
+	hhListOpts = append(hhListOpts, baselineListParams()...)
 	hhList := mcpgo.NewTool("household_list", hhListOpts...)
 	hhListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		opts := baseListOptions(req, d)
@@ -247,7 +247,7 @@ func registerSpaceTools(d *deps) []toolDef {
 	}
 
 	hhUpdate := mcpgo.NewTool("household_update",
-		mcpgo.WithDescription("Update a household's name (full update)."),
+		mcpgo.WithDescription("Update a household's name (the only writable field). Returns the updated household."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Household ID")),
 		mcpgo.WithString("name", mcpgo.Required(), mcpgo.Description("New name")),
 		dryRunParam(),
@@ -268,7 +268,7 @@ func registerSpaceTools(d *deps) []toolDef {
 	}
 
 	hhPatch := mcpgo.NewTool("household_patch",
-		mcpgo.WithDescription("Partially update a household (name)."),
+		mcpgo.WithDescription("Partially update a household's name (the only writable field)."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Household ID")),
 		mcpgo.WithString("name", mcpgo.Description("New name")),
 		dryRunParam(),
@@ -389,7 +389,7 @@ func baseListOptions(req mcpgo.CallToolRequest, d *deps) pagination.ListOptions 
 
 // baselineListParams are the shared list-tool parameters (query, page,
 // page_size, ordering, all, jq).
-func baselineListParams(d *deps) []mcpgo.ToolOption {
+func baselineListParams() []mcpgo.ToolOption {
 	return []mcpgo.ToolOption{
 		mcpgo.WithString("query", mcpgo.Description("Text search (icontains/trigram name lookup)")),
 		mcpgo.WithInteger("page", mcpgo.Description("Page number, 1-indexed (default 1)")),

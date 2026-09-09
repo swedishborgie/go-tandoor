@@ -14,7 +14,7 @@ import (
 func registerPropertyTools(d *deps) []toolDef {
 	// --- properties (property values on foods) ---
 	propListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List property values attached to foods (e.g. calories per 100 g). Filter by food. Use all=true for the full set; jq projects fields to keep output small.")}
-	propListOpts = append(propListOpts, baselineListParams(d)...)
+	propListOpts = append(propListOpts, baselineListParams()...)
 	propListOpts = append(propListOpts,
 		mcpgo.WithInteger("food_id", mcpgo.Description("Filter by food ID")),
 	)
@@ -55,7 +55,7 @@ func registerPropertyTools(d *deps) []toolDef {
 
 	// --- property types ---
 	typeListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List property types (e.g. Calories, Protein). Types define which properties foods can have; their IDs are instance-specific — enumerate before referencing them in writes.")}
-	typeListOpts = append(typeListOpts, baselineListParams(d)...)
+	typeListOpts = append(typeListOpts, baselineListParams()...)
 	typeList := mcpgo.NewTool("property_type_list", typeListOpts...)
 	typeListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		opts := &property.TypeListOptions{ListOptions: baseListOptions(req, d)}
@@ -109,7 +109,7 @@ func registerPropertyTools(d *deps) []toolDef {
 	}
 
 	propUpdate := mcpgo.NewTool("property_update",
-		mcpgo.WithDescription("Update a property value. Returns the updated property."),
+		mcpgo.WithDescription("Update a property value (full replacement). Returns the updated property."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Property ID")),
 		mcpgo.WithInteger("property_type_id", mcpgo.Required(), mcpgo.Description("Property type ID")),
 		mcpgo.WithNumber("property_amount", mcpgo.Description("Property amount")),

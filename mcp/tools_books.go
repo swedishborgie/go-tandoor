@@ -15,7 +15,7 @@ import (
 func registerBookTools(d *deps) []toolDef {
 	// --- books ---
 	bookListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List recipe books. Use all=true for the full set; jq projects fields to keep output small.")}
-	bookListOpts = append(bookListOpts, baselineListParams(d)...)
+	bookListOpts = append(bookListOpts, baselineListParams()...)
 	bookListOpts = append(bookListOpts,
 		mcpgo.WithInteger("space_id", mcpgo.Description("Filter by space ID")),
 	)
@@ -55,7 +55,7 @@ func registerBookTools(d *deps) []toolDef {
 
 	// --- book entries ---
 	entryListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List recipe book entries (book↔recipe links). Filter by book. Use all=true for the full set; jq projects fields to keep output small.")}
-	entryListOpts = append(entryListOpts, baselineListParams(d)...)
+	entryListOpts = append(entryListOpts, baselineListParams()...)
 	entryListOpts = append(entryListOpts,
 		mcpgo.WithInteger("book_id", mcpgo.Description("Filter by recipe book ID")),
 	)

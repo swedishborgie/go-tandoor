@@ -12,7 +12,7 @@ import (
 
 func registerStorageTools(d *deps) []toolDef {
 	listOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List storages (legacy storage locations; prefer inventory locations for new data). Use all=true for the full set; jq projects fields to keep output small.")}
-	listOpts = append(listOpts, baselineListParams(d)...)
+	listOpts = append(listOpts, baselineListParams()...)
 	list := mcpgo.NewTool("storage_list", listOpts...)
 	listHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		opts := &storage.ListOptions{ListOptions: baseListOptions(req, d)}

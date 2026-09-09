@@ -11,7 +11,7 @@ import (
 
 func registerSupermarketTools(d *deps) []toolDef {
 	listOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List supermarkets. Use all=true for the full set; jq projects fields to keep output small.")}
-	listOpts = append(listOpts, baselineListParams(d)...)
+	listOpts = append(listOpts, baselineListParams()...)
 	list := mcpgo.NewTool("supermarket_list", listOpts...)
 	listHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		opts := &supermarket.ListOptions{ListOptions: baseListOptions(req, d)}
@@ -44,7 +44,7 @@ func registerSupermarketTools(d *deps) []toolDef {
 	}
 
 	catListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List supermarket categories. Use all=true for the full set; jq projects fields to keep output small.")}
-	catListOpts = append(catListOpts, baselineListParams(d)...)
+	catListOpts = append(catListOpts, baselineListParams()...)
 	catList := mcpgo.NewTool("supermarket_category_list", catListOpts...)
 	catListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		base := baseListOptions(req, d)

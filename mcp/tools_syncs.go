@@ -12,7 +12,7 @@ import (
 
 func registerSyncTools(d *deps) []toolDef {
 	listOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List sync configurations (external recipe sync sources). Use all=true for the full set; jq projects fields to keep output small.")}
-	listOpts = append(listOpts, baselineListParams(d)...)
+	listOpts = append(listOpts, baselineListParams()...)
 	list := mcpgo.NewTool("sync_list", listOpts...)
 	listHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		opts := &importexport.SyncListOptions{ListOptions: baseListOptions(req, d)}
@@ -45,7 +45,7 @@ func registerSyncTools(d *deps) []toolDef {
 	}
 
 	logListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List sync logs (history of sync runs). Use all=true for the full set; jq projects fields to keep output small.")}
-	logListOpts = append(logListOpts, baselineListParams(d)...)
+	logListOpts = append(logListOpts, baselineListParams()...)
 	logList := mcpgo.NewTool("sync_log_list", logListOpts...)
 	logListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		opts := &importexport.SyncLogListOptions{ListOptions: baseListOptions(req, d)}
@@ -65,7 +65,7 @@ func registerSyncTools(d *deps) []toolDef {
 	syncDataParam := mcpgo.WithAny("data", mcpgo.Required(), mcpgo.Description("Sync data as a JSON object (Tandoor sync serializer fields: storage (storage ID), path, active)"))
 
 	create := mcpgo.NewTool("sync_create",
-		mcpgo.WithDescription("Create a sync configuration (external recipe sync source)."),
+		mcpgo.WithDescription("Create a sync configuration (external recipe sync source). Returns the created sync configuration."),
 		syncDataParam,
 		dryRunParam(),
 	)
@@ -84,7 +84,7 @@ func registerSyncTools(d *deps) []toolDef {
 	}
 
 	update := mcpgo.NewTool("sync_update",
-		mcpgo.WithDescription("Replace a sync configuration with the given data (full replacement)."),
+		mcpgo.WithDescription("Replace a sync configuration with the given data (full replacement). Returns the updated sync configuration."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Sync ID")),
 		syncDataParam,
 		dryRunParam(),
@@ -108,7 +108,7 @@ func registerSyncTools(d *deps) []toolDef {
 	}
 
 	patch := mcpgo.NewTool("sync_patch",
-		mcpgo.WithDescription("Partially update a sync configuration (only the fields present in data)."),
+		mcpgo.WithDescription("Partially update a sync configuration. Only provided fields change."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Sync ID")),
 		syncDataParam,
 		dryRunParam(),

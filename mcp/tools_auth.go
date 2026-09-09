@@ -49,7 +49,7 @@ func registerAuthTools(d *deps) []toolDef {
 	createTokenHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		expiresStr, err := req.RequireString("expires")
 		if err != nil {
-			return errResult(fmt.Errorf("expires is required (RFC3339)")), nil
+			return errResult(fmt.Errorf("expires is required (RFC3339): %w", err)), nil
 		}
 		expires, err := time.Parse(time.RFC3339, expiresStr)
 		if err != nil {

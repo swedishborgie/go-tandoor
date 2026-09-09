@@ -12,7 +12,7 @@ import (
 
 func registerRecipeTools(d *deps) []toolDef {
 	listOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List recipes. Supports text query, keyword/space/book/user filters, ordering, and pagination. Use all=true for the full set; jq projects fields to keep output small.")}
-	listOpts = append(listOpts, baselineListParams(d)...)
+	listOpts = append(listOpts, baselineListParams()...)
 	listOpts = append(listOpts,
 		mcpgo.WithArray("keyword_ids", mcpgo.WithIntegerItems(), mcpgo.Description("Filter by keyword IDs")),
 		mcpgo.WithInteger("space_id", mcpgo.Description("Filter by space ID")),
@@ -136,7 +136,7 @@ func registerRecipeTools(d *deps) []toolDef {
 	}
 
 	recUpdate := mcpgo.NewTool("recipe_update",
-		mcpgo.WithDescription("Replace a recipe with the given data (full replacement). Returns the updated recipe."),
+		mcpgo.WithDescription("Replace a recipe with the given data (full replacement; use recipe_patch for partial changes). Returns the updated recipe."),
 		mcpgo.WithInteger("id", mcpgo.Required(), mcpgo.Description("Recipe ID")),
 		dataParam,
 		dryRunParam(),
@@ -283,12 +283,12 @@ func registerRecipeTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
-		imageUrl := req.GetString("image_url", "")
+		imageURL := req.GetString("image_url", "")
 		imageB64 := req.GetString("image_base64", "")
-		if (imageUrl == "") == (imageB64 == "") {
+		if (imageURL == "") == (imageB64 == "") {
 			return errResult(fmt.Errorf("exactly one of image_url or image_base64 is required")), nil
 		}
-		img := &recipe.Image{Image: imageB64, ImageURL: imageUrl}
+		img := &recipe.Image{Image: imageB64, ImageURL: imageURL}
 		return runWrite(ctx, req, "PUT", fmt.Sprintf("api/recipe/%d/image/", id), img, func() (any, error) {
 			return d.Tandoor.Recipes().UploadImage(ctx, id, img)
 		})

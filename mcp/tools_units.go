@@ -13,7 +13,7 @@ import (
 func registerUnitTools(d *deps) []toolDef {
 	// --- units ---
 	unitListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List units of measurement. Use all=true for the full set; jq projects fields to keep output small. Unit IDs are instance-specific — enumerate before referencing them in writes.")}
-	unitListOpts = append(unitListOpts, baselineListParams(d)...)
+	unitListOpts = append(unitListOpts, baselineListParams()...)
 	unitList := mcpgo.NewTool("unit_list", unitListOpts...)
 	unitListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		opts := &unit.ListOptions{ListOptions: baseListOptions(req, d)}
@@ -47,7 +47,7 @@ func registerUnitTools(d *deps) []toolDef {
 
 	// --- unit conversions ---
 	convListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List unit conversions (how much of a unit a food weighs/volumes). Filter by food. Use all=true for the full set; jq projects fields to keep output small.")}
-	convListOpts = append(convListOpts, baselineListParams(d)...)
+	convListOpts = append(convListOpts, baselineListParams()...)
 	convListOpts = append(convListOpts,
 		mcpgo.WithInteger("food_id", mcpgo.Description("Filter by food ID")),
 	)

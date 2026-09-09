@@ -12,7 +12,7 @@ import (
 
 func registerKeywordTools(d *deps) []toolDef {
 	listOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List keywords. Filter by recipe book. Use all=true for the full set; jq projects fields to keep output small.")}
-	listOpts = append(listOpts, baselineListParams(d)...)
+	listOpts = append(listOpts, baselineListParams()...)
 	listOpts = append(listOpts,
 		mcpgo.WithInteger("recipe_book_id", mcpgo.Description("Filter by recipe book ID")),
 	)

@@ -15,7 +15,7 @@ import (
 func registerShoppingTools(d *deps) []toolDef {
 	// --- shopping lists ---
 	listListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List shopping lists. Use all=true for the full set; jq projects fields to keep output small.")}
-	listListOpts = append(listListOpts, baselineListParams(d)...)
+	listListOpts = append(listListOpts, baselineListParams()...)
 	listList := mcpgo.NewTool("shopping_list_list", listListOpts...)
 	listListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		opts := &shopping.ListListOptions{ListOptions: baseListOptions(req, d)}
@@ -49,7 +49,7 @@ func registerShoppingTools(d *deps) []toolDef {
 
 	// --- shopping entries ---
 	entryListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List shopping entries (items to buy). Use all=true for the full set; jq projects fields to keep output small.")}
-	entryListOpts = append(entryListOpts, baselineListParams(d)...)
+	entryListOpts = append(entryListOpts, baselineListParams()...)
 	entryList := mcpgo.NewTool("shopping_entry_list", entryListOpts...)
 	entryListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		opts := &shopping.ListEntryListOptions{ListOptions: baseListOptions(req, d)}
@@ -83,7 +83,7 @@ func registerShoppingTools(d *deps) []toolDef {
 
 	// --- shopping list recipes ---
 	recipeListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List shopping list recipes (recipes contributing ingredients to shopping lists). Use all=true for the full set; jq projects fields to keep output small.")}
-	recipeListOpts = append(recipeListOpts, baselineListParams(d)...)
+	recipeListOpts = append(recipeListOpts, baselineListParams()...)
 	recipeList := mcpgo.NewTool("shopping_recipe_list", recipeListOpts...)
 	recipeListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		opts := &shopping.ListRecipeListOptions{ListOptions: baseListOptions(req, d)}

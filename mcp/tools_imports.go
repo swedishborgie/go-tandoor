@@ -14,7 +14,7 @@ import (
 func registerImportTools(d *deps) []toolDef {
 	// --- recipe imports (staged imports awaiting execution) ---
 	importListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List recipe imports (staged imports waiting to be executed). Use all=true for the full set; jq projects fields to keep output small.")}
-	importListOpts = append(importListOpts, baselineListParams(d)...)
+	importListOpts = append(importListOpts, baselineListParams()...)
 	importList := mcpgo.NewTool("import_list", importListOpts...)
 	importListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		opts := &importexport.RecipeImportListOptions{ListOptions: baseListOptions(req, d)}
@@ -48,7 +48,7 @@ func registerImportTools(d *deps) []toolDef {
 
 	// --- logs ---
 	importLogListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List import logs (history of executed imports). Use all=true for the full set; jq projects fields to keep output small.")}
-	importLogListOpts = append(importLogListOpts, baselineListParams(d)...)
+	importLogListOpts = append(importLogListOpts, baselineListParams()...)
 	importLogList := mcpgo.NewTool("import_log_list", importLogListOpts...)
 	importLogListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		opts := &importexport.ImportLogListOptions{ListOptions: baseListOptions(req, d)}
@@ -64,7 +64,7 @@ func registerImportTools(d *deps) []toolDef {
 	}
 
 	exportLogListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List export logs (history of recipe exports). Use all=true for the full set; jq projects fields to keep output small.")}
-	exportLogListOpts = append(exportLogListOpts, baselineListParams(d)...)
+	exportLogListOpts = append(exportLogListOpts, baselineListParams()...)
 	exportLogList := mcpgo.NewTool("export_log_list", exportLogListOpts...)
 	exportLogListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		opts := &importexport.ExportLogListOptions{ListOptions: baseListOptions(req, d)}
@@ -80,7 +80,7 @@ func registerImportTools(d *deps) []toolDef {
 	}
 
 	bookmarkletListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List bookmarklet imports (recipes captured via the browser bookmarklet). Use all=true for the full set; jq projects fields to keep output small.")}
-	bookmarkletListOpts = append(bookmarkletListOpts, baselineListParams(d)...)
+	bookmarkletListOpts = append(bookmarkletListOpts, baselineListParams()...)
 	bookmarkletList := mcpgo.NewTool("bookmarklet_import_list", bookmarkletListOpts...)
 	bookmarkletListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		opts := &importexport.BookmarkletImportListOptions{ListOptions: baseListOptions(req, d)}

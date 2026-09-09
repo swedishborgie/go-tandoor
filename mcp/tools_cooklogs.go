@@ -12,7 +12,7 @@ import (
 
 func registerCookLogTools(d *deps) []toolDef {
 	listOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List cook logs (recorded times a recipe was cooked). Filter by recipe. Use all=true for the full set; jq projects fields to keep output small.")}
-	listOpts = append(listOpts, baselineListParams(d)...)
+	listOpts = append(listOpts, baselineListParams()...)
 	listOpts = append(listOpts,
 		mcpgo.WithInteger("recipe_id", mcpgo.Description("Filter by recipe ID")),
 	)

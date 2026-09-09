@@ -15,7 +15,7 @@ import (
 func registerMealplanTools(d *deps) []toolDef {
 	// --- meal plans ---
 	planListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List meal plans. Filter by space, user, and/or a date range (date_from/date_to, YYYY-MM-DD). Use all=true for the full set; jq projects fields to keep output small.")}
-	planListOpts = append(planListOpts, baselineListParams(d)...)
+	planListOpts = append(planListOpts, baselineListParams()...)
 	planListOpts = append(planListOpts,
 		mcpgo.WithInteger("space_id", mcpgo.Description("Filter by space ID")),
 		mcpgo.WithInteger("user_id", mcpgo.Description("Filter by user ID")),
@@ -93,7 +93,7 @@ func registerMealplanTools(d *deps) []toolDef {
 
 	// --- meal types ---
 	typeListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List meal types (Breakfast, Lunch, Dinner, ...). Their IDs are instance-specific — enumerate before referencing them in writes.")}
-	typeListOpts = append(typeListOpts, baselineListParams(d)...)
+	typeListOpts = append(typeListOpts, baselineListParams()...)
 	typeList := mcpgo.NewTool("meal_type_list", typeListOpts...)
 	typeListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		base := baseListOptions(req, d)
@@ -371,7 +371,7 @@ func registerMealplanTools(d *deps) []toolDef {
 		}
 		mealTypeID, err := req.RequireInt("meal_type_id")
 		if err != nil {
-			return errResult(fmt.Errorf("meal_type_id is required")), nil
+			return errResult(fmt.Errorf("meal_type_id is required: %w", err)), nil
 		}
 		var shared []mealplan.SharedUser
 		for _, uid := range req.GetIntSlice("shared_user_ids", nil) {

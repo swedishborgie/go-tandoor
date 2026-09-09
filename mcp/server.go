@@ -47,6 +47,8 @@ type toolDef struct {
 	write   bool // write tools are skipped in read-only mode
 }
 
+//go:generate go test -count=1 -run TestCatalog . -args -gen
+
 // NewServer builds the tandoor MCP server.
 //
 // The tandoor client must already be constructed (base URL, auth). fdcClient
@@ -124,16 +126,20 @@ func applyAnnotations(tool *mcpgo.Tool, write bool) {
 // initialization.
 func serverInstructions(d *deps, toolCount int) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Tandoor Recipes API at %s. ", d.Tandoor.BaseURLOrigin())
-	fmt.Fprintf(&b, "%d tools registered. IDs are integers.", toolCount)
-	b.WriteString(" Prefer *_list tools with query/filters; add jq to keep output small; all=true for full results.")
-	b.WriteString(" Writes: pass dry_run=true first when unsure.")
-	if d.FDC == nil {
-		b.WriteString(" FDC_API_KEY is not set, so fdc_* tools are unavailable.")
+	fmt.Fprintf(&b, "Tandoor Recipes API at %s. %d tools registered. IDs are integers. ",
+		d.Tandoor.BaseURLOrigin(), toolCount)
+	b.WriteString("Prefer *_list tools with query/filters; add jq to keep output small; all=true for full results. ")
+	if d.Cfg.ReadOnly {
+		b.WriteString("Read-only mode: write tools are not registered. ")
 	} else {
-		b.WriteString(" fdc_* tools are available.")
+		b.WriteString("Writes: pass dry_run=true first when unsure. ")
 	}
-	b.WriteString(" Property type IDs and unit IDs are instance-specific — enumerate them (property_type_list, unit_list) before using them.")
+	if d.FDC == nil {
+		b.WriteString("FDC_API_KEY is not set, so fdc_* tools return an error until it is configured. ")
+	} else {
+		b.WriteString("fdc_* tools are available. ")
+	}
+	b.WriteString("Property type and unit IDs are instance-specific — enumerate them (property_type_list, unit_list) before using them.")
 	return b.String()
 }
 

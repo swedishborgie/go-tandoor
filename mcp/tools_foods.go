@@ -14,7 +14,7 @@ import (
 
 func registerFoodTools(d *deps) []toolDef {
 	listOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List foods. Use query for fuzzy name search, name_exact for a case-insensitive exact name, or names for a batch exact lookup returning a {name: food|null} map. Filters: category_id, unit_id. Use all=true for the full set; jq projects fields to keep output small.")}
-	listOpts = append(listOpts, baselineListParams(d)...)
+	listOpts = append(listOpts, baselineListParams()...)
 	listOpts = append(listOpts,
 		mcpgo.WithInteger("category_id", mcpgo.Description("Filter by food category ID")),
 		mcpgo.WithInteger("unit_id", mcpgo.Description("Filter by unit ID")),

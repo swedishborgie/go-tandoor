@@ -11,7 +11,7 @@ func registerMiscTools(d *deps) []toolDef {
 	// --- view logs ---
 	viewLogList := mcpgo.NewTool("view_log_list", append(
 		[]mcpgo.ToolOption{mcpgo.WithDescription("List view logs (recipe view history). Use all=true for the full set; jq projects fields to keep output small.")},
-		baselineListParams(d)...,
+		baselineListParams()...,
 	)...)
 	viewLogListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		return plainPaginatedList(ctx, req, d, d.Tandoor.ViewLogs().List)
@@ -37,7 +37,7 @@ func registerMiscTools(d *deps) []toolDef {
 	// --- user files ---
 	userFileList := mcpgo.NewTool("user_file_list", append(
 		[]mcpgo.ToolOption{mcpgo.WithDescription("List user files (uploaded attachments). Use all=true for the full set; jq projects fields to keep output small.")},
-		baselineListParams(d)...,
+		baselineListParams()...,
 	)...)
 	userFileListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		return plainPaginatedList(ctx, req, d, d.Tandoor.UserFiles().List)
@@ -63,7 +63,7 @@ func registerMiscTools(d *deps) []toolDef {
 	// --- automations ---
 	automationList := mcpgo.NewTool("automation_list", append(
 		[]mcpgo.ToolOption{mcpgo.WithDescription("List automations (scheduled tasks). Use all=true for the full set; jq projects fields to keep output small.")},
-		baselineListParams(d)...,
+		baselineListParams()...,
 	)...)
 	automationListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		return plainPaginatedList(ctx, req, d, d.Tandoor.Automations().List)
@@ -89,7 +89,7 @@ func registerMiscTools(d *deps) []toolDef {
 	// --- custom filters ---
 	customFilterList := mcpgo.NewTool("custom_filter_list", append(
 		[]mcpgo.ToolOption{mcpgo.WithDescription("List custom filters (saved recipe search filters). Use all=true for the full set; jq projects fields to keep output small.")},
-		baselineListParams(d)...,
+		baselineListParams()...,
 	)...)
 	customFilterListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		return plainPaginatedList(ctx, req, d, d.Tandoor.CustomFilters().List)
@@ -115,7 +115,7 @@ func registerMiscTools(d *deps) []toolDef {
 	// --- connector configs ---
 	connectorList := mcpgo.NewTool("connector_config_list", append(
 		[]mcpgo.ToolOption{mcpgo.WithDescription("List connector configurations (external service integrations). Use all=true for the full set; jq projects fields to keep output small.")},
-		baselineListParams(d)...,
+		baselineListParams()...,
 	)...)
 	connectorListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		return plainPaginatedList(ctx, req, d, d.Tandoor.ConnectorConfigs().List)
@@ -181,7 +181,7 @@ func registerMiscTools(d *deps) []toolDef {
 	// --- AI providers ---
 	aiProviderList := mcpgo.NewTool("ai_provider_list", append(
 		[]mcpgo.ToolOption{mcpgo.WithDescription("List AI provider configurations. Use all=true for the full set; jq projects fields to keep output small.")},
-		baselineListParams(d)...,
+		baselineListParams()...,
 	)...)
 	aiProviderListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		return plainPaginatedList(ctx, req, d, d.Tandoor.AiProviders().List)
@@ -207,7 +207,7 @@ func registerMiscTools(d *deps) []toolDef {
 	// --- AI logs ---
 	aiLogList := mcpgo.NewTool("ai_log_list", append(
 		[]mcpgo.ToolOption{mcpgo.WithDescription("List AI logs (AI feature usage history). Use all=true for the full set; jq projects fields to keep output small.")},
-		baselineListParams(d)...,
+		baselineListParams()...,
 	)...)
 	aiLogListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		return plainPaginatedList(ctx, req, d, d.Tandoor.AiLogs().List)
@@ -279,7 +279,7 @@ func registerMiscTools(d *deps) []toolDef {
 	searchPrefPatchHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		userID, err := req.RequireInt("user_id")
 		if err != nil {
-			return errResult(fmt.Errorf("user_id is required")), nil
+			return errResult(fmt.Errorf("user_id is required: %w", err)), nil
 		}
 		data, ok := req.GetArguments()["data"].(map[string]any)
 		if !ok {

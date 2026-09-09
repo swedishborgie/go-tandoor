@@ -13,7 +13,7 @@ import (
 func registerInventoryTools(d *deps) []toolDef {
 	// --- locations ---
 	locListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List inventory locations (fridge, pantry, ...). Use all=true for the full set; jq projects fields to keep output small.")}
-	locListOpts = append(locListOpts, baselineListParams(d)...)
+	locListOpts = append(locListOpts, baselineListParams()...)
 	locList := mcpgo.NewTool("inventory_location_list", locListOpts...)
 	locListHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
 		opts := &inventory.LocationListOptions{ListOptions: baseListOptions(req, d)}
@@ -47,7 +47,7 @@ func registerInventoryTools(d *deps) []toolDef {
 
 	// --- entries ---
 	entryListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List inventory entries (food quantities on hand). Filter by food, location, or barcode; include_empty controls zero-quantity rows. Use all=true for the full set; jq projects fields to keep output small.")}
-	entryListOpts = append(entryListOpts, baselineListParams(d)...)
+	entryListOpts = append(entryListOpts, baselineListParams()...)
 	entryListOpts = append(entryListOpts,
 		mcpgo.WithInteger("food_id", mcpgo.Description("Filter by food ID")),
 		mcpgo.WithInteger("location_id", mcpgo.Description("Filter by inventory location ID")),
@@ -100,7 +100,7 @@ func registerInventoryTools(d *deps) []toolDef {
 
 	// --- logs ---
 	logListOpts := []mcpgo.ToolOption{mcpgo.WithDescription("List inventory logs (stock changes). Filter by entry or food. Use all=true for the full set; jq projects fields to keep output small.")}
-	logListOpts = append(logListOpts, baselineListParams(d)...)
+	logListOpts = append(logListOpts, baselineListParams()...)
 	logListOpts = append(logListOpts,
 		mcpgo.WithInteger("entry_id", mcpgo.Description("Filter by inventory entry ID")),
 		mcpgo.WithInteger("food_id", mcpgo.Description("Filter by food ID")),
