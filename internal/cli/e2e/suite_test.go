@@ -100,8 +100,8 @@ func waitReady() error {
 }
 
 func buildCLI() (string, error) {
-	tmp := filepath.Join(os.TempDir(), "tandoor-cli-e2e")
-	cmd := exec.Command("go", "build", "-o", tmp, "./cmd/tandoor-cli")
+	tmp := filepath.Join(os.TempDir(), "tandoor-e2e")
+	cmd := exec.Command("go", "build", "-o", tmp, "./cmd/tandoor")
 	cmd.Dir = repoRoot()
 	out, err := cmd.CombinedOutput()
 	if err != nil {

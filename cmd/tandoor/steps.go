@@ -1,4 +1,4 @@
-// cmd/tandoor-cli/cmd_steps.go
+// cmd/tandoor/cmd_steps.go
 
 package main
 

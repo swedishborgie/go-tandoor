@@ -1,4 +1,4 @@
-// cmd/tandoor-cli/cmd_auth.go
+// cmd/tandoor/cmd_auth.go
 
 package main
 

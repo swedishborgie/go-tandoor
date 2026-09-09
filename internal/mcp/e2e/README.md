@@ -1,6 +1,6 @@
 # MCP End-to-End Tests
 
-These tests build the `tandoor-cli` binary and drive its `mcp` subcommand as
+These tests build the `tandoor` binary and drive its `mcp` subcommand as
 an MCP server over stdio against a real Tandoor instance (2.6.13) started
 via podman-compose.
 
@@ -17,10 +17,10 @@ INTEGRATION_TESTS=1 go test -tags=integration ./internal/mcp/e2e -run TestE2ERec
 
 ## What is tested
 
-* MCP binary builds once per suite via `go build ./cmd/tandoor-cli`
+* MCP binary builds once per suite via `go build ./cmd/tandoor`
 * TestMain starts the compose stack on port 8081, creates a superuser, seeds
   space/household/meal-type/book data, and obtains an API token
-* Each test spawns `tandoor-cli mcp` with `TANDOOR_BASE_URL`/`TANDOOR_TOKEN`
+* Each test spawns `tandoor mcp` with `TANDOOR_BASE_URL`/`TANDOOR_TOKEN`
   and talks MCP over stdio (mcp-go stdio client)
 * Write-tool lifecycle per resource: apply → patch/update → delete → verify
   gone (write tools perform the operation and return the result object)

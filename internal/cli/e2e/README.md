@@ -15,7 +15,7 @@ INTEGRATION_TESTS=1 go test -tags=integration ./internal/cli/e2e -run TestE2ERec
 
 ## What is tested
 
-* CLI builds once per suite via `go build ./cmd/tandoor-cli`
+* CLI builds once per suite via `go build ./cmd/tandoor`
 * TestMain starts compose stack, creates superuser, obtains API token
 * Tests run CLI via `exec.Command` with `TANDOOR_BASE_URL` and `TANDOOR_TOKEN`
 * Priority 1 commands: `recipes list/create/get`, `foods list/ensure/get`, dry-run semantics, `--page-size`, JSON output

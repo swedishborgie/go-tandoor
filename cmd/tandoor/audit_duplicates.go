@@ -1,4 +1,4 @@
-// cmd/tandoor-cli/cmd_audit_duplicates.go
+// cmd/tandoor/cmd_audit_duplicates.go
 
 package main
 

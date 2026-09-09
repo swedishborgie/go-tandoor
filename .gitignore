@@ -1,4 +1,4 @@
-/tandoor-cli
+/tandoor
 .env
 .env.test
 *.har
@@ -6,3 +6,4 @@
 # local working artifacts
 PLAN.md
 skill.md
+/dist

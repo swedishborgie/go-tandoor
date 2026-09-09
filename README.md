@@ -1,17 +1,17 @@
 # go-tandoor
 
 A Go client library for the [Tandoor Recipes](https://tandoorRecipes.com/) REST API, plus
-`tandoor-cli`, a full-featured command-line client for managing recipes, shopping lists,
+`tandoor`, a full-featured command-line client for managing recipes, shopping lists,
 meal plans, and food data — built for humans *and* AI agents.
 
 - **Library** (`github.com/swedishborgie/go-tandoor`): typed, paginated access to the Tandoor
   REST API, covering recipes, ingredients, steps, foods, units & conversions, shopping lists,
   meal plans, cook logs, recipe books, properties, spaces, imports, and more.
-- **CLI** (`tandoor-cli`): a single binary that wraps the API with sensible subcommands,
+- **CLI** (`tandoor`): a single binary that wraps the API with sensible subcommands,
   batch operations, JSON output (`--jq` filters, `--output-file`), dry-run mode for writes,
   food-data audit tooling, and a client for the USDA FoodData Central (FDC) API. The same
-  binary also runs as an MCP server via `tandoor-cli mcp`.
-- **MCP server** (`tandoor-cli mcp`): a [Model Context Protocol](https://modelcontextprotocol.io/) server
+  binary also runs as an MCP server via `tandoor mcp`.
+- **MCP server** (`tandoor mcp`): a [Model Context Protocol](https://modelcontextprotocol.io/) server
   exposing the API as ~200 tools for AI agents, with optional parameters,
   a read-only mode, and stdio or streamable-HTTP transports. Embeddable via the `mcp` package.
 
@@ -20,10 +20,10 @@ meal plans, and food data — built for humans *and* AI agents.
 ### CLI
 
 ```sh
-go install github.com/swedishborgie/go-tandoor/cmd/tandoor-cli@latest
+go install github.com/swedishborgie/go-tandoor/cmd/tandoor@latest
 ```
 
-The CLI binary also serves as the MCP server (`tandoor-cli mcp`) — one install covers both.
+The CLI binary also serves as the MCP server (`tandoor mcp`) — one install covers both.
 
 ### Library
 
@@ -42,10 +42,10 @@ via the CLI:
 
 ```sh
 # Username/password login (POST /api-token-auth/)
-tandoor-cli --base-url https://recipes.example.com auth token --username you --password secret
+tandoor --base-url https://recipes.example.com auth token --username you --password secret
 
 # OIDC browser login (opens your browser, catches the callback on localhost:9999)
-tandoor-cli --base-url https://recipes.example.com auth oidc --oidc-backend github
+tandoor --base-url https://recipes.example.com auth oidc --oidc-backend github
 ```
 
 Both print the token to stdout. The CLI also has `auth list-tokens` for enumerating existing tokens.
@@ -56,10 +56,10 @@ Both print the token to stdout. The CLI also has `auth list-tokens` for enumerat
 export TANDOOR_TOKEN=tda_...
 export TANDOOR_BASE_URL=https://recipes.example.com   # required: your Tandoor instance URL
 
-tandoor-cli recipes list --search "chicken"
-tandoor-cli recipes get 42
-tandoor-cli foods ensure --name "butternut squash" --name "thyme"
-tandoor-cli shopping add-recipe 42 --list-id 1
+tandoor recipes list --search "chicken"
+tandoor recipes get 42
+tandoor foods ensure --name "butternut squash" --name "thyme"
+tandoor shopping add-recipe 42 --list-id 1
 ```
 
 Output is pretty-printed JSON. List commands support `--all` to collect every page into one
@@ -71,7 +71,7 @@ Write commands support `--dry-run` to preview the exact payload without sending 
 ## CLI reference
 
 ```
-tandoor-cli [global options] <command> [command options]
+tandoor [global options] <command> [command options]
 ```
 
 ### Global flags
@@ -113,7 +113,7 @@ FDC commands additionally accept `--fdc-api-key` (`FDC_API_KEY` env var) and hon
 | `audit` | `foods`, `food` (`inspect`, `suggest`, `fix`), `duplicates`, `connectors` |
 | `fdc` | `search`, `food` (FDC ID lookup for a Tandoor food), `get` |
 
-Run `tandoor-cli <command> --help` (or any subcommand) for flags and usage.
+Run `tandoor <command> --help` (or any subcommand) for flags and usage.
 
 ### Food-data audit
 
@@ -121,17 +121,17 @@ The `audit` group scans your food database for hygiene issues and can propose/ap
 corrections, optionally cross-checking against USDA FoodData Central:
 
 ```sh
-tandoor-cli audit foods --category quantity_prefix   # scan for naming issues
-tandoor-cli audit duplicates --threshold 0.9         # find near-duplicate foods
-tandoor-cli audit food inspect 123                   # deep-dive one food (needs FDC_API_KEY)
-tandoor-cli audit food suggest 123                   # propose a correction
-tandoor-cli audit food fix 123 --yes                 # apply it (--dry-run to preview)
-tandoor-cli audit connectors                         # analyze +/-/& ingredient lines
+tandoor audit foods --category quantity_prefix   # scan for naming issues
+tandoor audit duplicates --threshold 0.9         # find near-duplicate foods
+tandoor audit food inspect 123                   # deep-dive one food (needs FDC_API_KEY)
+tandoor audit food suggest 123                   # propose a correction
+tandoor audit food fix 123 --yes                 # apply it (--dry-run to preview)
+tandoor audit connectors                         # analyze +/-/& ingredient lines
 ```
 
 ## MCP server
 
-`tandoor-cli mcp` exposes the Tandoor API to AI agents as MCP tools: ~200 tools covering every
+`tandoor mcp` exposes the Tandoor API to AI agents as MCP tools: ~200 tools covering every
 domain (recipes, ingredients, steps, foods, units, properties, shopping, meal plans, cook
 logs, books, imports, spaces/users, FDC, and audit composites). Design notes:
 
@@ -149,10 +149,10 @@ One binary operates as either CLI or MCP server:
 
 ```sh
 # stdio transport (default): speaks MCP over stdin/stdout; logs go to stderr
-TANDOOR_BASE_URL=https://recipes.example.com TANDOOR_TOKEN=tda_... tandoor-cli mcp
+TANDOOR_BASE_URL=https://recipes.example.com TANDOOR_TOKEN=tda_... tandoor mcp
 
 # streamable HTTP transport: POST/GET http://127.0.0.1:8090/mcp
-tandoor-cli mcp --transport http --http-addr 127.0.0.1:8090
+tandoor mcp --transport http --http-addr 127.0.0.1:8090
 ```
 
 Configuration (flags or env vars):
@@ -174,7 +174,7 @@ Claude Desktop / Claude Code / pi accept a command-based server entry, e.g.
 {
   "mcpServers": {
     "tandoor": {
-      "command": "tandoor-cli",
+      "command": "tandoor",
       "args": ["mcp"],
       "env": {
         "TANDOOR_BASE_URL": "https://recipes.example.com",
@@ -588,7 +588,18 @@ Key API surface:
 ```sh
 go build ./...          # build
 go test ./...           # test
-go run ./cmd/tandoor-cli --help
+go run ./cmd/tandoor --help
+```
+
+### Versioning
+
+`tandoor --version` reports the version injected at build time. Releases are tag-driven:
+pushing a `v*` tag runs GoReleaser (`.github/workflows/release.yml`), which builds
+linux/windows × amd64/arm64 binaries and creates the GitHub release. Locally, build with
+the git-derived version (tag + commit, `-dirty` when uncommitted):
+
+```sh
+go build -ldflags "-X main.version=$(git describe --tags --dirty --always --long)" -o tandoor ./cmd/tandoor
 ```
 
 `go test ./...` runs unit tests only. The integration and CLI end-to-end suites spin up a
@@ -608,7 +619,7 @@ Layout:
 ├── detector/          # food-name issue detectors (audit support)
 ├── normalize/         # food-name normalization (audit support)
 ├── internal/          # shared HTTP executor; integration & CLI e2e test suites
-└── cmd/tandoor-cli/   # the CLI (urfave/cli v3), including the "mcp" MCP-server subcommand
+└── cmd/tandoor/   # the CLI (urfave/cli v3), including the "mcp" MCP-server subcommand
 ```
 
 The API surface tracks the Tandoor REST API as documented in the [Tandoor documentation](https://docs.tandoor.me/).

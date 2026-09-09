@@ -3,7 +3,7 @@
 //
 // The server is built from an already-constructed *tandoor.Client (and an
 // optional *fdc.Client) so all configuration and authentication lives with
-// the caller (see the "tandoor-cli mcp" subcommand), keeping this package trivially
+// the caller (see the "tandoor mcp" subcommand), keeping this package trivially
 // embeddable and testable.
 package mcp
 

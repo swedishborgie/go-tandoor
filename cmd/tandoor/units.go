@@ -1,48 +1,43 @@
-// cmd/tandoor-cli/cmd_keywords.go
+// cmd/tandoor/cmd_units.go
 
 package main
 
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	"github.com/swedishborgie/go-tandoor"
-	"github.com/swedishborgie/go-tandoor/keyword"
 	"github.com/swedishborgie/go-tandoor/pagination"
+	"github.com/swedishborgie/go-tandoor/unit"
 	"github.com/urfave/cli/v3"
 )
 
-// GetKeywordsCommand returns the top-level `keywords` command group.
-func GetKeywordsCommand() *cli.Command {
+// GetUnitsCommand returns the top-level `units` command group.
+func GetUnitsCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "keywords",
-		Usage: "Keyword operations",
+		Name:  "units",
+		Usage: "Unit operations",
 		Commands: []*cli.Command{
-			keywordsListCommand(),
-			keywordsGetCommand(),
-			keywordsCreateCommand(),
-			keywordsUpdateCommand(),
-			keywordsPatchCommand(),
-			keywordsDeleteCommand(),
-			keywordsMergeCommand(),
+			unitsListCommand(),
+			unitsGetCommand(),
+			unitsCreateCommand(),
+			unitsUpdateCommand(),
+			unitsPatchCommand(),
+			unitsDeleteCommand(),
+			unitsMergeCommand(),
 		},
 	}
 }
 
-func keywordsListCommand() *cli.Command {
+func unitsListCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "list",
-		Usage: "List keywords (GET /api/keyword/)",
+		Usage: "List units (GET /api/unit/)",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "search",
 				Aliases: []string{"q"},
 				Usage:   "Search query",
-			},
-			&cli.IntFlag{
-				Name:  "parent-id",
-				Usage: "Filter by parent keyword ID",
 			},
 			&cli.BoolFlag{
 				Name:  "all",
@@ -54,26 +49,20 @@ func keywordsListCommand() *cli.Command {
 			search := cmd.String("search")
 			pageSize := cmd.Int("page-size")
 
-			opts := &keyword.ListOptions{ListOptions: pagination.ListOptions{PageSize: pageSize}}
+			opts := &unit.ListOptions{ListOptions: pagination.ListOptions{PageSize: pageSize}}
 			if search != "" {
 				opts.Search = search
 			}
-			if cmd.IsSet("parent-id") {
-				if opts.Extra == nil {
-					opts.Extra = make(map[string]string)
-				}
-				opts.Extra["parent"] = strconv.Itoa(cmd.Int("parent-id"))
-			}
 
-			page, err := c.Keywords().List(ctx, opts)
+			page, err := c.Units().List(ctx, opts)
 			if err != nil {
 				printError(err)
 				return err
 			}
 			if cmd.Bool("all") {
-				all, err := pagination.CollectAll(ctx, page, func(pageNum int) (*pagination.Paginated[keyword.Keyword], error) {
+				all, err := pagination.CollectAll(ctx, page, func(pageNum int) (*pagination.Paginated[unit.Unit], error) {
 					opts.Page = pageNum
-					return c.Keywords().List(ctx, opts)
+					return c.Units().List(ctx, opts)
 				})
 				if err != nil {
 					printError(err)
@@ -86,10 +75,10 @@ func keywordsListCommand() *cli.Command {
 	}
 }
 
-func keywordsGetCommand() *cli.Command {
+func unitsGetCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "get",
-		Usage:     "Get a keyword by ID (GET /api/keyword/<id>/)",
+		Usage:     "Get a unit by ID (GET /api/unit/<id>/)",
 		ArgsUsage: "id",
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			c := ctx.Value(ctxKeyClient).(*tandoor.Client)
@@ -98,81 +87,86 @@ func keywordsGetCommand() *cli.Command {
 				printError(err)
 				return err
 			}
-			k, err := c.Keywords().Get(ctx, id)
+			u, err := c.Units().Get(ctx, id)
 			if err != nil {
 				printError(err)
 				return err
 			}
-			return printJSON(k)
+			return printJSON(u)
 		},
 	}
 }
 
-func keywordFlags() []cli.Flag {
+func unitSharedFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.StringFlag{
-			Name:  "label",
-			Usage: "Keyword label",
+			Name:  "plural-name",
+			Usage: "Plural display name",
 		},
 		&cli.StringFlag{
 			Name:  "description",
-			Usage: "Keyword description",
+			Usage: "Unit description",
 		},
-		&cli.IntFlag{
-			Name:  "parent",
-			Usage: "Parent keyword ID",
+		&cli.StringFlag{
+			Name:  "base-unit",
+			Usage: "Base unit kind (weight, volume, etc.)",
+		},
+		&cli.StringFlag{
+			Name:  "open-data-slug",
+			Usage: "Open data slug",
 		},
 	}
 }
 
-func keywordsCreateCommand() *cli.Command {
+func unitsCreateCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "create",
-		Usage:     "Create a keyword (POST /api/keyword/)",
+		Usage:     "Create a unit (POST /api/unit/)",
 		ArgsUsage: "name",
-		Flags:     keywordFlags(),
+		Flags:     unitSharedFlags(),
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			c := ctx.Value(ctxKeyClient).(*tandoor.Client)
 			name := cmd.Args().First()
 			if name == "" {
-				return fmt.Errorf("keyword name is required")
+				return fmt.Errorf("unit name is required")
 			}
 
-			payload := &keyword.Keyword{
-				Name: name,
-			}
-			if cmd.IsSet("label") {
-				payload.Label = cmd.String("label")
+			payload := &unit.Unit{Name: name}
+			if cmd.IsSet("plural-name") {
+				payload.PluralName = cmd.String("plural-name")
 			}
 			if cmd.IsSet("description") {
 				payload.Description = cmd.String("description")
 			}
-			if cmd.IsSet("parent") {
-				payload.Parent = cmd.Int("parent")
+			if cmd.IsSet("base-unit") {
+				payload.BaseUnit = cmd.String("base-unit")
+			}
+			if cmd.IsSet("open-data-slug") {
+				payload.OpenDataSlug = cmd.String("open-data-slug")
 			}
 
-			created, err := c.Keywords().Create(ctx, payload)
+			created, err := c.Units().Create(ctx, payload)
 			if err != nil {
 				printError(err)
 				return err
 			}
-			fmt.Fprintf(cmd.ErrWriter, "[create] keyword %q id=%d\n", created.Name, created.ID)
+			fmt.Fprintf(cmd.ErrWriter, "[create] unit %q id=%d\n", created.Name, created.ID)
 			return printJSON(created)
 		},
 	}
 }
 
-func keywordsUpdateCommand() *cli.Command {
+func unitsUpdateCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "update",
-		Usage:     "Update a keyword (PUT /api/keyword/<id>/)",
+		Usage:     "Update a unit (PUT /api/unit/<id>/)",
 		ArgsUsage: "id",
 		Flags: append([]cli.Flag{
 			&cli.StringFlag{
 				Name:  "name",
-				Usage: "Keyword name",
+				Usage: "Unit name",
 			},
-		}, keywordFlags()...),
+		}, unitSharedFlags()...),
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			c := ctx.Value(ctxKeyClient).(*tandoor.Client)
 			id, err := parseIDArg(cmd.Args().First())
@@ -181,46 +175,49 @@ func keywordsUpdateCommand() *cli.Command {
 				return err
 			}
 
-			payload, err := c.Keywords().Get(ctx, id)
+			payload, err := c.Units().Get(ctx, id)
 			if err != nil {
-				return fmt.Errorf("get keyword %d: %w", id, err)
+				return fmt.Errorf("get unit %d: %w", id, err)
 			}
 
 			if cmd.IsSet("name") {
 				payload.Name = cmd.String("name")
 			}
-			if cmd.IsSet("label") {
-				payload.Label = cmd.String("label")
+			if cmd.IsSet("plural-name") {
+				payload.PluralName = cmd.String("plural-name")
 			}
 			if cmd.IsSet("description") {
 				payload.Description = cmd.String("description")
 			}
-			if cmd.IsSet("parent") {
-				payload.Parent = cmd.Int("parent")
+			if cmd.IsSet("base-unit") {
+				payload.BaseUnit = cmd.String("base-unit")
+			}
+			if cmd.IsSet("open-data-slug") {
+				payload.OpenDataSlug = cmd.String("open-data-slug")
 			}
 
-			updated, err := c.Keywords().Update(ctx, payload)
+			updated, err := c.Units().Update(ctx, payload)
 			if err != nil {
 				printError(err)
 				return err
 			}
-			fmt.Fprintf(cmd.ErrWriter, "[update] keyword %d updated\n", id)
+			fmt.Fprintf(cmd.ErrWriter, "[update] unit %d updated\n", id)
 			return printJSON(updated)
 		},
 	}
 }
 
-func keywordsPatchCommand() *cli.Command {
+func unitsPatchCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "patch",
-		Usage:     "Patch a keyword (PATCH /api/keyword/<id>/)",
+		Usage:     "Patch a unit (PATCH /api/unit/<id>/)",
 		ArgsUsage: "id",
 		Flags: append([]cli.Flag{
 			&cli.StringFlag{
 				Name:  "name",
-				Usage: "Keyword name",
+				Usage: "Unit name",
 			},
-		}, keywordFlags()...),
+		}, unitSharedFlags()...),
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			c := ctx.Value(ctxKeyClient).(*tandoor.Client)
 			id, err := parseIDArg(cmd.Args().First())
@@ -229,39 +226,42 @@ func keywordsPatchCommand() *cli.Command {
 				return err
 			}
 
-			payload, err := c.Keywords().Get(ctx, id)
+			payload, err := c.Units().Get(ctx, id)
 			if err != nil {
-				return fmt.Errorf("get keyword %d: %w", id, err)
+				return fmt.Errorf("get unit %d: %w", id, err)
 			}
 
 			if cmd.IsSet("name") {
 				payload.Name = cmd.String("name")
 			}
-			if cmd.IsSet("label") {
-				payload.Label = cmd.String("label")
+			if cmd.IsSet("plural-name") {
+				payload.PluralName = cmd.String("plural-name")
 			}
 			if cmd.IsSet("description") {
 				payload.Description = cmd.String("description")
 			}
-			if cmd.IsSet("parent") {
-				payload.Parent = cmd.Int("parent")
+			if cmd.IsSet("base-unit") {
+				payload.BaseUnit = cmd.String("base-unit")
+			}
+			if cmd.IsSet("open-data-slug") {
+				payload.OpenDataSlug = cmd.String("open-data-slug")
 			}
 
-			updated, err := c.Keywords().Patch(ctx, payload)
+			updated, err := c.Units().Patch(ctx, payload)
 			if err != nil {
 				printError(err)
 				return err
 			}
-			fmt.Fprintf(cmd.ErrWriter, "[patch] keyword %d updated\n", id)
+			fmt.Fprintf(cmd.ErrWriter, "[patch] unit %d updated\n", id)
 			return printJSON(updated)
 		},
 	}
 }
 
-func keywordsDeleteCommand() *cli.Command {
+func unitsDeleteCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "delete",
-		Usage:     "Delete a keyword (DELETE /api/keyword/<id>/)",
+		Usage:     "Delete a unit (DELETE /api/unit/<id>/)",
 		ArgsUsage: "id",
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			c := ctx.Value(ctxKeyClient).(*tandoor.Client)
@@ -270,19 +270,19 @@ func keywordsDeleteCommand() *cli.Command {
 				printError(err)
 				return err
 			}
-			if err := c.Keywords().Delete(ctx, id); err != nil {
+			if err := c.Units().Delete(ctx, id); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.ErrWriter, "[delete] keyword %d\n", id)
+			fmt.Fprintf(cmd.ErrWriter, "[delete] unit %d\n", id)
 			return nil
 		},
 	}
 }
 
-func keywordsMergeCommand() *cli.Command {
+func unitsMergeCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "merge",
-		Usage:     "Merge one keyword into another (PUT /api/keyword/<source>/merge/<target>/)",
+		Usage:     "Merge one unit into another (PUT /api/unit/<source>/merge/<target>/)",
 		ArgsUsage: "source_id target_id",
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			c := ctx.Value(ctxKeyClient).(*tandoor.Client)
@@ -300,11 +300,11 @@ func keywordsMergeCommand() *cli.Command {
 				return fmt.Errorf("invalid target_id: %w", err)
 			}
 
-			merged, err := c.Keywords().Merge(ctx, sourceID, targetID)
+			merged, err := c.Units().Merge(ctx, sourceID, targetID)
 			if err != nil {
-				return fmt.Errorf("merge keyword %d into %d: %w", sourceID, targetID, err)
+				return fmt.Errorf("merge unit %d into %d: %w", sourceID, targetID, err)
 			}
-			fmt.Fprintf(cmd.ErrWriter, "[merge] keyword %d -> %d\n", sourceID, targetID)
+			fmt.Fprintf(cmd.ErrWriter, "[merge] unit %d -> %d\n", sourceID, targetID)
 			return printJSON(merged)
 		},
 	}

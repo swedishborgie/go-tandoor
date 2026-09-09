@@ -1,4 +1,4 @@
-// cmd/tandoor-cli/mcp.go
+// cmd/tandoor/mcp.go
 
 package main
 
@@ -15,9 +15,9 @@ import (
 
 // GetMCPCommand returns the "mcp" subcommand, which runs this binary as a
 // Model Context Protocol server. It lets a single binary operate either as
-// the tandoor-cli or as an MCP server:
+// the tandoor or as an MCP server:
 //
-//	TANDOOR_BASE_URL=... TANDOOR_TOKEN=... tandoor-cli mcp
+//	TANDOOR_BASE_URL=... TANDOOR_TOKEN=... tandoor mcp
 func GetMCPCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "mcp",

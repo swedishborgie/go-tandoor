@@ -1,4 +1,4 @@
-// cmd/tandoor-cli/cmd_audit_foods.go
+// cmd/tandoor/cmd_audit_foods.go
 
 package main
 

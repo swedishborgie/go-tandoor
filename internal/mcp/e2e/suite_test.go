@@ -83,10 +83,10 @@ func waitReady() error {
 	}
 }
 
-// buildMCP compiles the tandoor-cli binary (the MCP entry point) once per suite.
+// buildMCP compiles the tandoor binary (the MCP entry point) once per suite.
 func buildMCP() (string, error) {
 	tmp := filepath.Join(os.TempDir(), "tandoor-mcp-e2e")
-	cmd := exec.Command("go", "build", "-o", tmp, "./cmd/tandoor-cli")
+	cmd := exec.Command("go", "build", "-o", tmp, "./cmd/tandoor")
 	cmd.Dir = repoRoot()
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -102,7 +102,7 @@ func repoRoot() string {
 	return filepath.Join(filepath.Dir(file), "..", "..", "..")
 }
 
-// newMCPClient starts "tandoor-cli mcp" as a subprocess and returns an
+// newMCPClient starts "tandoor mcp" as a subprocess and returns an
 // initialized in-process stdio client.
 func newMCPClient(t *testing.T) *client.Client {
 	t.Helper()

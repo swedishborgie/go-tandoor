@@ -1,4 +1,4 @@
-// cmd/tandoor-cli/cmd_fdc.go
+// cmd/tandoor/cmd_fdc.go
 
 package main
 

@@ -1,4 +1,4 @@
-// cmd/tandoor-cli/cmd_properties.go
+// cmd/tandoor/cmd_properties.go
 
 package main
 

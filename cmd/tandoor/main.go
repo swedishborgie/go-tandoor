@@ -1,4 +1,4 @@
-// tandoor-cli is a CLI tool for interacting with the Tandoor Recipes API.
+// tandoor is a CLI tool for interacting with the Tandoor Recipes API.
 //
 // It supports API key authentication, OIDC browser login, and request/response
 // recording via daytripper (HAR format).
@@ -18,14 +18,19 @@ import (
 	"github.com/swedishborgie/go-tandoor"
 )
 
-const appVersion = "0.1.0"
+// version is set at build time via -ldflags "-X main.version=...":
+//   - goreleaser release builds: the git tag (e.g. v0.1.0)
+//   - local builds: git describe output (tag + commit, "-dirty" when uncommitted)
+//
+// Builds without ldflags report "dev".
+var version = "dev"
 
 func main() {
 	app := &cli.Command{
-		Name:      "tandoor-cli",
+		Name:      "tandoor",
 		Usage:     "CLI for the Tandoor Recipes API",
-		Version:   appVersion,
-		UsageText: "tandoor-cli [global options] <command> [command options]",
+		Version:   version,
+		UsageText: "tandoor [global options] <command> [command options]",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:      "base-url",
@@ -66,8 +71,8 @@ func main() {
 				r := receiver.NewHARFileReceiver(harFile)
 				dt, err := daytripper.New(
 					daytripper.WithReceiver(r),
-					daytripper.WithCreator("tandoor-cli"),
-					daytripper.WithVersion(appVersion),
+					daytripper.WithCreator("tandoor"),
+					daytripper.WithVersion(version),
 				)
 				if err != nil {
 					return ctx, fmt.Errorf("daytripper: %w", err)

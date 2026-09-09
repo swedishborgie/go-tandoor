@@ -1,5 +1,5 @@
 // Package mcprun serves a pre-built Tandoor MCP server over the stdio or
-// streamable-HTTP transport. It backs the "tandoor-cli mcp" subcommand.
+// streamable-HTTP transport. It backs the "tandoor mcp" subcommand.
 package mcprun
 
 import (
@@ -61,14 +61,14 @@ func Serve(ctx context.Context, c *tandoor.Client, fdcClient *fdc.Client, opts O
 
 	switch opts.Transport {
 	case "", "stdio":
-		log.Printf("tandoor-cli mcp: stdio transport, base URL %s", c.BaseURLOrigin())
+		log.Printf("tandoor mcp: stdio transport, base URL %s", c.BaseURLOrigin())
 		return mcpgoserver.ServeStdio(s)
 	case "http":
 		addr := opts.HTTPAddr
 		if addr == "" {
 			addr = "127.0.0.1:8090"
 		}
-		log.Printf("tandoor-cli mcp: http transport on %s, base URL %s", addr, c.BaseURLOrigin())
+		log.Printf("tandoor mcp: http transport on %s, base URL %s", addr, c.BaseURLOrigin())
 		hs := mcpgoserver.NewStreamableHTTPServer(s, mcpgoserver.WithEndpointPath("/mcp"))
 		httpServer := &http.Server{Addr: addr, Handler: hs}
 		errCh := make(chan error, 1)
@@ -79,7 +79,7 @@ func Serve(ctx context.Context, c *tandoor.Client, fdcClient *fdc.Client, opts O
 		case err := <-errCh:
 			return err
 		case sig := <-stop:
-			log.Printf("tandoor-cli mcp: received %s, shutting down", sig)
+			log.Printf("tandoor mcp: received %s, shutting down", sig)
 			// The caller's context is still live while the action runs, so
 			// the shutdown inherits it instead of starting from Background.
 			shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)

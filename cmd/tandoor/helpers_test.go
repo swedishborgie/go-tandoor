@@ -1,4 +1,4 @@
-// cmd/tandoor-cli/helpers_test.go
+// cmd/tandoor/helpers_test.go
 
 package main
 
