@@ -45,7 +45,9 @@ func (f *fakeTandoor) addFood(name string) *food.Food {
 
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(v)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 }
 
 func pageResp[T any](all []T, page, pageSize int) map[string]any {
@@ -85,7 +87,7 @@ func (f *fakeTandoor) handler() http.HandlerFunc {
 		case p == "/api/food/":
 			f.mu.Lock()
 			foods := f.foods
-			cap := f.pageCap
+			capLimit := f.pageCap
 			f.mu.Unlock()
 			page, pageSize := 1, 50
 			if v, err := atoi(q.Get("page")); err == nil && v > 0 {
@@ -94,8 +96,8 @@ func (f *fakeTandoor) handler() http.HandlerFunc {
 			if v, err := atoi(q.Get("page_size")); err == nil && v > 0 {
 				pageSize = v
 			}
-			if cap > 0 {
-				pageSize = cap
+			if capLimit > 0 {
+				pageSize = capLimit
 			}
 			writeJSON(w, pageResp(foods, page, pageSize))
 
@@ -250,7 +252,7 @@ func atoi(s string) (int, error) {
 
 func (f *fakeTandoor) start(t *testing.T) *tandoor.Client {
 	t.Helper()
-	server := httptest.NewServer(http.HandlerFunc(f.handler()))
+	server := httptest.NewServer(f.handler())
 	t.Cleanup(server.Close)
 	c, err := tandoor.NewClient(server.URL)
 	require.NoError(t, err)
@@ -316,7 +318,7 @@ func TestFindDuplicates_NoGroups(t *testing.T) {
 
 	res, err := FindDuplicates(context.Background(), c, 0)
 	require.NoError(t, err)
-	assert.Equal(t, DefaultDuplicateThreshold, res.Threshold)
+	assert.InDelta(t, DefaultDuplicateThreshold, res.Threshold, 1e-9)
 	assert.Empty(t, res.Groups)
 }
 
@@ -450,7 +452,7 @@ func TestInspect(t *testing.T) {
 	assert.Empty(t, res.Ingredients)
 	require.Len(t, res.FDCMatches, 1)
 	assert.Equal(t, 100, res.FDCMatches[0].FDCID)
-	assert.Equal(t, 0.9, res.FDCMatches[0].Score)
+	assert.InDelta(t, 0.9, res.FDCMatches[0].Score, 1e-9)
 }
 
 func TestInspect_NoFDCID_SkipsFDC(t *testing.T) {
@@ -614,9 +616,9 @@ func TestAttach_Create(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "created", res.Action)
 	require.NotNil(t, res.Food)
-	assert.Equal(t, 1, len(res.Food.Properties))
+	assert.Len(t, res.Food.Properties, 1)
 	require.NotNil(t, res.Per100)
-	assert.Equal(t, 100.0, res.Per100.Amount)
+	assert.InDelta(t, 100.0, res.Per100.Amount, 1e-9)
 	assert.Equal(t, 1, res.Per100.UnitID)
 	assert.Equal(t, []string{"food_properties_patched"}, res.ActionsTaken)
 }
@@ -638,7 +640,7 @@ func TestAttach_Update(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "updated", res.Action)
 	require.NotNil(t, res.Property)
-	assert.Equal(t, 200.0, *res.Property.PropertyAmount)
+	assert.InDelta(t, 200.0, *res.Property.PropertyAmount, 1e-9)
 }
 
 func TestAttach_DryRun(t *testing.T) {

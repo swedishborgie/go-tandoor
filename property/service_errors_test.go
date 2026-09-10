@@ -24,6 +24,7 @@ func mockStatus(t *testing.T, status int, body string) *testutil.MockExecutor {
 }
 
 func notFound(t *testing.T) *testutil.MockExecutor {
+	t.Helper()
 	return mockStatus(t, http.StatusNotFound, `{"detail":"Not found."}`)
 }
 

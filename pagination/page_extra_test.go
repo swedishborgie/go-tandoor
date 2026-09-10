@@ -59,10 +59,10 @@ func TestIterator_CurrentAndPage(t *testing.T) {
 	for it.Next() {
 		got = append(got, it.Current())
 	}
-	assert.Nil(t, it.Err())
+	require.NoError(t, it.Err())
 	assert.Equal(t, []int{1, 2, 3, 4}, got)
 	assert.NotNil(t, it.Page())
-	assert.Equal(t, 2, len(it.Page().Results))
+	assert.Len(t, it.Page().Results, 2)
 }
 
 func TestIterator_FetchError(t *testing.T) {

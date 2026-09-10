@@ -28,7 +28,7 @@ func TestMealPlan_UnmarshalJSON_NoMealType(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`{"id":1,"title":"Pasta","servings":4}`), &mp))
 	assert.Equal(t, 1, mp.ID)
 	assert.Equal(t, "Pasta", mp.Title)
-	assert.Equal(t, 4.0, mp.Servings)
+	assert.InDelta(t, 4.0, mp.Servings, 1e-9)
 	assert.Zero(t, mp.MealTypeID)
 	assert.Nil(t, mp.MealType)
 }

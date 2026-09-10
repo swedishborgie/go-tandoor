@@ -24,6 +24,7 @@ func mockStatus(t *testing.T, status int, body string) *testutil.MockExecutor {
 }
 
 func notFound(t *testing.T) *testutil.MockExecutor {
+	t.Helper()
 	return mockStatus(t, http.StatusNotFound, `{"detail":"Not found."}`)
 }
 
@@ -87,7 +88,7 @@ func TestConversionService_Patch(t *testing.T) {
 
 	c, err := NewConversionService(testutil.NewMockExecutor(server.URL)).Patch(context.Background(), &Conversion{ID: 1})
 	require.NoError(t, err)
-	assert.Equal(t, 2.5, c.ConvertedAmount)
+	assert.InDelta(t, 2.5, c.ConvertedAmount, 1e-9)
 }
 
 func TestConversionService_Patch_Error(t *testing.T) {

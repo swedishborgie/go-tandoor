@@ -17,7 +17,7 @@ func TestIngredientUnmarshalJSON(t *testing.T) {
 		assert.Equal(t, 7, i.FoodID)
 		assert.Equal(t, 3, i.UnitID)
 		require.NotNil(t, i.Amount)
-		assert.Equal(t, 2.5, *i.Amount)
+		assert.InDelta(t, 2.5, *i.Amount, 1e-9)
 		assert.Nil(t, i.Food)
 	})
 
@@ -72,8 +72,8 @@ func TestIngredientMarshalJSON(t *testing.T) {
 		require.NoError(t, err)
 		var m map[string]json.RawMessage
 		require.NoError(t, json.Unmarshal(b, &m))
-		assert.Equal(t, json.RawMessage("null"), m["food"])
-		assert.Equal(t, json.RawMessage("null"), m["unit"])
+		assert.JSONEq(t, "null", string(m["food"]))
+		assert.JSONEq(t, "null", string(m["unit"]))
 	})
 
 	t.Run("non-int FoodID is omitted without ForceRefs", func(t *testing.T) {
@@ -90,6 +90,6 @@ func TestIngredientMarshalJSON(t *testing.T) {
 		require.NoError(t, err)
 		var m map[string]json.RawMessage
 		require.NoError(t, json.Unmarshal(b, &m))
-		assert.Equal(t, json.RawMessage("null"), m["food"])
+		assert.JSONEq(t, "null", string(m["food"]))
 	})
 }

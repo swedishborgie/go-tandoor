@@ -21,7 +21,6 @@ import (
 type fakeAPI struct {
 	mu     sync.Mutex
 	routes map[string]http.HandlerFunc // key: "METHOD /path/" or "METHOD /path"
-	hits   []string                    // recorded "METHOD path"
 	fail   int                         // if non-zero, respond with this status for all requests
 	url    string
 }
@@ -45,7 +44,6 @@ func newFakeAPI(t *testing.T) *fakeAPI {
 	f := &fakeAPI{routes: map[string]http.HandlerFunc{}}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
-		f.hits = append(f.hits, r.Method+" "+r.URL.Path)
 		fail := f.fail
 		f.mu.Unlock()
 		if fail != 0 {
@@ -116,7 +114,9 @@ func trailingID(path string) int {
 
 func writeJSONBody(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(v)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 }
 
 func (f *fakeAPI) route(method, path string, h http.HandlerFunc) {
@@ -132,18 +132,6 @@ func (f *fakeAPI) run(t *testing.T, args ...string) error {
 	all := append([]string{"tandoor", "--base-url", f.url}, args...)
 	app := newApp()
 	return app.Run(context.Background(), all)
-}
-
-func (f *fakeAPI) hitCount(method, path string) int {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	n := 0
-	for _, h := range f.hits {
-		if h == method+" "+path {
-			n++
-		}
-	}
-	return n
 }
 
 // runApp runs the CLI without a fake server (for arg-validation tests).

@@ -148,7 +148,6 @@ func newApp() *cli.Command {
 			GetMCPCommand(),
 		},
 	}
-
 }
 
 // Context key types for storing values in context.
