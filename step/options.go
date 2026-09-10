@@ -23,8 +23,21 @@ func (o ListOptions) Values() url.Values {
 	return v
 }
 
+// QueryString returns the query string for the options, including the
+// typed filters (shadowing the promoted pagination implementation, which
+// would drop RecipeID).
+func (o ListOptions) QueryString() string {
+	return o.Values().Encode()
+}
+
 // ToPaginationOptions converts to pagination.ListOptions.
 func (o ListOptions) ToPaginationOptions() *pagination.ListOptions {
 	base := o.ListOptions
+	if o.RecipeID != 0 {
+		if base.Extra == nil {
+			base.Extra = make(map[string]string)
+		}
+		base.Extra["recipe"] = strconv.Itoa(o.RecipeID)
+	}
 	return &base
 }

@@ -1,0 +1,14 @@
+coverage:
+  status:
+    project:
+      default:
+        informational: true  # keep informational until the coverage plan phases land
+  ignore:
+    - "cmd/tandoor/main.go"
+    - "internal/tests/**"
+    - "internal/cli/e2e/**"
+    - "internal/mcp/e2e/**"
+    - "internal/testutil/**"
+    - "internal/testcompose/**"
+    - "internal/testcover/**"
+    - "internal/mcprun/**"

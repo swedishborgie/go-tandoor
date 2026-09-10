@@ -28,6 +28,13 @@ func (o ListOptions) Values() url.Values {
 	return v
 }
 
+// QueryString returns the query string for the options, including the
+// typed filters (shadowing the promoted pagination implementation, which
+// would drop CategoryID/UnitID).
+func (o ListOptions) QueryString() string {
+	return o.Values().Encode()
+}
+
 // ToPaginationOptions converts to pagination.ListOptions with Extra.
 func (o ListOptions) ToPaginationOptions() *pagination.ListOptions {
 	base := o.ListOptions
