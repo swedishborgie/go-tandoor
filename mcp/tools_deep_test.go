@@ -52,6 +52,9 @@ func placeholder(toolName, name string, schema map[string]any) any {
 	case "data":
 		return map[string]any{"name": "test"}
 	}
+	if (toolName == "recipe_add_ingredients" || toolName == "recipe_add_step") && name == "ingredients" {
+		return []any{map[string]any{"food_id": 1}}
+	}
 	items, _ := schema["items"].(map[string]any)
 	switch schema["type"] {
 	case "boolean":
@@ -106,8 +109,13 @@ func TestAllToolsWithFullArgs(t *testing.T) {
 			// Exactly one of shopping_list_recipe_id / recipe_id is allowed.
 			delete(args, "shopping_list_recipe_id")
 		}
+		if tool.Name == "recipe_add_ingredients" {
+			// The canned recipe has no steps; step_index defaults to 0,
+			// which creates the first step.
+			delete(args, "step_index")
+		}
 		res := callTool(t, c, tool.Name, args)
-		if strings.HasPrefix(tool.Name, "fdc_") {
+		if strings.HasPrefix(tool.Name, "fdc_") || tool.Name == "food_fdc_attach" {
 			// No FDC client in this server: configuration error is correct.
 			require.Truef(t, res.IsError, "tool %s without FDC should error", tool.Name)
 			continue
@@ -186,6 +194,23 @@ func TestFdcToolsConfigured(t *testing.T) {
 	res = callTool(t, c, "fdc_search", map[string]any{"query": "test", "types": []any{"bogus"}})
 	require.True(t, res.IsError)
 	require.Contains(t, resultText(t, res), "unknown data type")
+
+	// food_fdc_attach runs the client-side composite. The canned FDC food
+	// has no nutrients, so the run reports skipped (still a success).
+	res = callTool(t, c, "food_fdc_attach", map[string]any{"food_id": 1, "fdc_id": 123})
+	require.False(t, res.IsError, resultText(t, res))
+	require.Contains(t, resultText(t, res), "skipped")
+
+	// food_auto_conversions on a food without conversions: the canned
+	// instance has no ounce/liter units, so everything is skipped.
+	res = callTool(t, c, "food_auto_conversions", map[string]any{"food_id": 1})
+	require.False(t, res.IsError, resultText(t, res))
+
+	// Without an FDC client the attach tool is a configuration error.
+	plain := newTestClient(t)
+	res = callTool(t, plain, "food_fdc_attach", map[string]any{"food_id": 1})
+	require.True(t, res.IsError)
+	require.Contains(t, resultText(t, res), "FDC_API_KEY")
 }
 
 // TestToolErrorBranches exercises validation and API-error branches:

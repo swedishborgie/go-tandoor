@@ -209,10 +209,12 @@ matches (the test fails when the README drifts).
 
 | Tool | Description |
 | --- | --- |
+| `recipe_add_ingredients` | Append ingredients to a recipe step without touching anything else (idempotent: entries already in the step are skipped unless allow_duplicates). When the recipe has no steps, the first step is created (step_index 0). Returns the added/skipped counts and the updated recipe. |
+| `recipe_add_step` | Append a step to a recipe, optionally with ingredients; other steps and fields are untouched. When the recipe has no steps, this creates the first one. Returns the updated recipe. |
 | `recipe_add_to_shopping` | Add a recipe's ingredients to a shopping list. With list_recipe, edits that existing entry instead; servings 0 with list_recipe deletes it. |
 | `recipe_ai_properties` | Trigger server-side AI to generate keywords, servings, and times for a recipe. Requires an AI provider configured on the instance. |
 | `recipe_batch_update` | Update multiple recipes at once: set keywords and/or working/waiting time. Returns the updated recipes. |
-| `recipe_create` | Create a recipe from a raw Tandoor recipe payload. Returns the created recipe. |
+| `recipe_create` | Create a recipe from a raw Tandoor recipe payload. A top-level ingredients array is merged into the first step (Tandoor ignores it there); each step is given an ingredients array when missing. Returns the created recipe. |
 | `recipe_delete` | Delete a recipe. |
 | `recipe_delete_external` | Remove the external file reference from a recipe (keeps the recipe). |
 | `recipe_get` | Get a single recipe by ID, including ingredients, steps, and keywords. |
@@ -250,11 +252,13 @@ matches (the test fails when the README drifts).
 | Tool | Description |
 | --- | --- |
 | `food_ai_properties` | Trigger server-side AI to generate properties for a food. Requires an AI provider configured on the instance. |
+| `food_auto_conversions` | Create common unit conversions for a food based on its property unit (gram → oz/lb/kg or millilitre → cup/tbsp/tsp), resolving unit IDs by name from the instance. Skips conversions that already exist; idempotent. |
 | `food_batch_update` | Batch update foods: add, remove, or replace substitutes for a set of foods at once. |
 | `food_create` | Create a food. Returns the created food. |
 | `food_delete` | Delete a food. Fails if the food is still in use. |
 | `food_ensure` | Ensure foods exist by exact name, creating missing ones (composite of food_list + food_create + FDC candidate lookup). With force_create=false it only reports which names exist, match, or would be created. |
-| `food_fdc_import` | Pull USDA FDC data into a food that already has an fdc_id set (populates properties and conversions server-side). |
+| `food_fdc_attach` | Attach properties to a food from USDA FDC data (client-side composite: fetches the food's FDC record, matches every property type that carries an fdc_id, and applies them in one food update). Idempotent — re-running updates existing properties. Requires FDC_API_KEY. Prefer this over food_fdc_import, which uses the Tandoor server's FDC endpoint and can 500. |
+| `food_fdc_import` | Pull USDA FDC data into a food that already has an fdc_id set, using the Tandoor server's own FDC endpoint (populates properties and conversions server-side). That endpoint can fail with transient 500s; prefer food_fdc_attach when FDC_API_KEY is configured. |
 | `food_get` | Get a single food by ID (includes category, unit, and properties). |
 | `food_list` | List foods. Use query for fuzzy name search, name_exact for a case-insensitive exact name, or names for a batch exact lookup returning a {name: food\|null} map. Filters: category_id, unit_id. Use all=true for the full set; jq projects fields to keep output small. |
 | `food_merge` | Merge one food into another: usages re-point to the target, then the source is deleted. |

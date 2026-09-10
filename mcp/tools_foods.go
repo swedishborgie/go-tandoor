@@ -299,7 +299,7 @@ func registerFoodTools(d *deps) []toolDef {
 	}
 
 	fdcImport := mcpgo.NewTool("food_fdc_import",
-		mcpgo.WithDescription("Pull USDA FDC data into a food that already has an fdc_id set (populates properties and conversions server-side)."),
+		mcpgo.WithDescription("Pull USDA FDC data into a food that already has an fdc_id set, using the Tandoor server's own FDC endpoint (populates properties and conversions server-side). That endpoint can fail with transient 500s; prefer food_fdc_attach when FDC_API_KEY is configured."),
 		mcpgo.WithInteger("food_id", mcpgo.Required(), mcpgo.Description("Food ID")),
 		jqParam(),
 	)
@@ -308,6 +308,63 @@ func registerFoodTools(d *deps) []toolDef {
 		return runWrite(func() (any, error) {
 			return d.Tandoor.Foods().FdcImport(ctx, id)
 		})
+	}
+
+	// fdcAttach is the client-side FDC attach: it fetches the FDC record
+	// itself and applies properties in one food update, so it does not depend
+	// on the (flaky) Tandoor server-side FDC endpoint.
+	fdcAttach := mcpgo.NewTool("food_fdc_attach",
+		mcpgo.WithDescription("Attach properties to a food from USDA FDC data (client-side composite: fetches the food's FDC record, matches every property type that carries an fdc_id, and applies them in one food update). Idempotent — re-running updates existing properties. Requires FDC_API_KEY. Prefer this over food_fdc_import, which uses the Tandoor server's FDC endpoint and can 500."),
+		mcpgo.WithInteger("food_id", mcpgo.Required(), mcpgo.Description("Food ID")),
+		mcpgo.WithInteger("fdc_id", mcpgo.Description("FDC ID to use (default: the food's own fdc_id)")),
+		mcpgo.WithNumber("per_100_amount", mcpgo.Description("Basis amount for the food's properties_food_amount (default 100)")),
+		mcpgo.WithInteger("per_100_unit_id", mcpgo.Description("Basis unit ID for properties_food_unit (default: food's existing unit, else the instance's gram unit)")),
+		jqParam(),
+	)
+	fdcAttachHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+		if d.FDC == nil {
+			return errResult(fdcNotConfigured()), nil
+		}
+		opts := &auditfood.FdcAttachOptions{
+			FoodID:       req.GetInt("food_id", 0),
+			Per100Amount: req.GetFloat("per_100_amount", 0),
+			Per100UnitID: req.GetInt("per_100_unit_id", 0),
+		}
+		if v, err := req.RequireInt("fdc_id"); err == nil && v != 0 {
+			opts.FDCID = &v
+		}
+		result, err := auditfood.AttachFDCProperties(ctx, d.Tandoor, d.FDC, opts, false)
+		if err != nil {
+			return errResult(err), nil
+		}
+		if jq := req.GetString("jq", ""); jq != "" {
+			s, err := applyJQ(ctx, jq, result)
+			if err != nil {
+				return errResult(err), nil
+			}
+			return mcpgo.NewToolResultText(s), nil
+		}
+		return jsonResult(result), nil
+	}
+
+	autoConv := mcpgo.NewTool("food_auto_conversions",
+		mcpgo.WithDescription("Create common unit conversions for a food based on its property unit (gram → oz/lb/kg or millilitre → cup/tbsp/tsp), resolving unit IDs by name from the instance. Skips conversions that already exist; idempotent."),
+		mcpgo.WithInteger("food_id", mcpgo.Required(), mcpgo.Description("Food ID")),
+		jqParam(),
+	)
+	autoConvHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+		result, err := auditfood.AutoConversions(ctx, d.Tandoor, req.GetInt("food_id", 0), false)
+		if err != nil {
+			return errResult(err), nil
+		}
+		if jq := req.GetString("jq", ""); jq != "" {
+			s, err := applyJQ(ctx, jq, result)
+			if err != nil {
+				return errResult(err), nil
+			}
+			return mcpgo.NewToolResultText(s), nil
+		}
+		return jsonResult(result), nil
 	}
 
 	aiProps := mcpgo.NewTool("food_ai_properties",
@@ -366,6 +423,8 @@ func registerFoodTools(d *deps) []toolDef {
 		{tool: foodMove, handler: foodMoveHandler, write: true},
 		{tool: foodBatchUpdate, handler: foodBatchUpdateHandler, write: true},
 		{tool: fdcImport, handler: fdcImportHandler, write: true},
+		{tool: fdcAttach, handler: fdcAttachHandler, write: true},
+		{tool: autoConv, handler: autoConvHandler, write: true},
 		{tool: aiProps, handler: aiPropsHandler, write: true},
 		{tool: ensure, handler: ensureHandler, write: true},
 	}

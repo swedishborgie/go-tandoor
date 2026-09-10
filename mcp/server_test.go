@@ -241,9 +241,10 @@ func TestRegisteredTools(t *testing.T) {
 		"recipe_list", "recipe_get", "recipe_overview", "recipe_related",
 		"recipe_create", "recipe_update", "recipe_patch", "recipe_delete",
 		"recipe_batch_update", "recipe_add_to_shopping",
+		"recipe_add_ingredients", "recipe_add_step",
 		"recipe_upload_image", "recipe_ai_properties", "recipe_delete_external",
 		"recipe_from_source_create",
-		"food_fdc_import", "food_ai_properties", "food_ensure",
+		"food_fdc_import", "food_fdc_attach", "food_auto_conversions", "food_ai_properties", "food_ensure",
 		"food_audit_inspect", "food_audit_fix", "food_audit_fix_preview", "food_find_duplicates",
 		"fdc_search", "fdc_get_food",
 	}, toolNames(t, c))
@@ -316,7 +317,11 @@ func TestAllToolsRespond(t *testing.T) {
 		"recipe_upload_image":            {"id": 1, "image_url": "http://example.com/img.jpg"},
 		"recipe_ai_properties":           {"id": 1},
 		"recipe_delete_external":         {"id": 1},
+		"recipe_add_ingredients":         {"recipe_id": 1, "ingredients": []any{map[string]any{"food_id": 1}}},
+		"recipe_add_step":                {"recipe_id": 1, "name": "Step"},
 		"food_fdc_import":                {"id": 1},
+		"food_fdc_attach":                {"food_id": 1},
+		"food_auto_conversions":          {"food_id": 1},
 		"food_ai_properties":             {"id": 1},
 		"food_ensure":                    {"names": []any{"Test Food"}},
 		"property_attach":                {"food_id": 1, "property_type_id": 1},
@@ -329,7 +334,7 @@ func TestAllToolsRespond(t *testing.T) {
 	}
 	// The FDC tools require a real FDC API instance; the in-process test has
 	// no FDC client, so they are expected to return a configuration error.
-	fdcSkip := map[string]bool{"fdc_search": true, "fdc_get_food": true}
+	fdcSkip := map[string]bool{"fdc_search": true, "fdc_get_food": true, "food_fdc_attach": true}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	listRes, err := c.ListTools(ctx, mcpgo.ListToolsRequest{})
@@ -477,6 +482,7 @@ func TestToolFilter(t *testing.T) {
 		"recipe_list", "recipe_get", "recipe_overview", "recipe_related",
 		"recipe_create", "recipe_update", "recipe_patch", "recipe_delete",
 		"recipe_batch_update", "recipe_add_to_shopping",
+		"recipe_add_ingredients", "recipe_add_step",
 		"recipe_upload_image", "recipe_ai_properties", "recipe_delete_external",
 		"recipe_from_source_create",
 	}
@@ -488,6 +494,7 @@ func TestToolFilter(t *testing.T) {
 		"recipe_list", "recipe_overview", "recipe_related",
 		"recipe_create", "recipe_update", "recipe_patch", "recipe_delete",
 		"recipe_batch_update", "recipe_add_to_shopping",
+		"recipe_add_ingredients", "recipe_add_step",
 		"recipe_upload_image", "recipe_ai_properties", "recipe_delete_external",
 		"recipe_from_source_create",
 	}, toolNames(t, c))
@@ -507,7 +514,7 @@ func TestReadOnlyMode(t *testing.T) {
 
 	// Write-tool name shapes: CRUD verbs plus the M3 action verbs (import,
 	// ensure, attach, fix, auto_plan, create_entries, ...).
-	writeName := regexp.MustCompile(`_(create|update|patch|delete|merge|move|batch_update|import|import_all|query_synced_folder|upload_image|ai_properties|delete_external|ensure|attach|fix|auto_plan|create_entries|create_token|delete_token)$|add_recipe|add_to_shopping$`)
+	writeName := regexp.MustCompile(`_(create|update|patch|delete|merge|move|batch_update|import|import_all|query_synced_folder|upload_image|ai_properties|delete_external|ensure|attach|fix|auto_plan|auto_conversions|create_entries|create_token|delete_token)$|add_recipe|add_to_shopping|add_ingredients|add_step$`)
 	for _, name := range readOnly {
 		require.NotRegexp(t, writeName, name, "read-only mode must not expose write tool %s", name)
 	}

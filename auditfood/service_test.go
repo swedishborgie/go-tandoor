@@ -601,6 +601,50 @@ func TestFindUnitIDByName(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestFindGramUnitID(t *testing.T) {
+	f := newFakeTandoor()
+	f.units = []unit.Unit{
+		{ID: 1, Name: "cup"},
+		{ID: 2, Name: "g", BaseUnit: "gram"},
+		{ID: 3, Name: "Grams"},
+	}
+	c := f.start(t)
+
+	// base_unit "gram" wins over a matching name (Tandoor's default gram
+	// unit is named "g").
+	id, err := findGramUnitID(context.Background(), c)
+	require.NoError(t, err)
+	assert.Equal(t, 2, id)
+
+	// Name fallback when no unit carries the gram base_unit slug.
+	f.units = []unit.Unit{{ID: 5, Name: "g"}, {ID: 6, Name: "cup"}}
+	id, err = findGramUnitID(context.Background(), c)
+	require.NoError(t, err)
+	assert.Equal(t, 5, id)
+
+	f.units = []unit.Unit{{ID: 7, Name: "cup"}}
+	_, err = findGramUnitID(context.Background(), c)
+	require.Error(t, err)
+}
+
+// TestAttach_ResolvesGUnit: a food with no properties_food_unit must still
+// attach cleanly when the instance's gram unit is named "g".
+func TestAttach_ResolvesGUnit(t *testing.T) {
+	f := newFakeTandoor()
+	f.units = []unit.Unit{{ID: 9, Name: "g", BaseUnit: "gram"}}
+	f.propTypes = []property.Type{{ID: 10, Name: "Energy"}}
+	fo := f.addFood("Pasta")
+	c := f.start(t)
+
+	res, err := Attach(context.Background(), c, &AttachOptions{
+		FoodID: fo.ID, PropertyTypeID: 10, Amount: 158,
+	}, false)
+	require.NoError(t, err)
+	assert.Equal(t, "created", res.Action)
+	require.NotNil(t, res.Per100)
+	assert.Equal(t, 9, res.Per100.UnitID)
+}
+
 // --- Attach ---
 
 func TestAttach_Create(t *testing.T) {

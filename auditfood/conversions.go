@@ -20,7 +20,7 @@ type AutoConversionsResult struct {
 }
 
 // AutoConversions creates sensible unit conversions for a food based on its
-// property unit (or the unit named "gram" when the food has no
+// property unit (or the instance's gram unit when the food has no
 // properties_food_unit):
 //
 //	gram  → 28.3495 g = 1 oz, 453.592 g = 1 lb, 1000 g = 1 kg
@@ -35,10 +35,10 @@ func AutoConversions(ctx context.Context, c *tandoor.Client, foodID int, dryRun 
 		return nil, fmt.Errorf("get food: %w", err)
 	}
 
-	// Base unit: the food's property unit, else the unit named "gram".
+	// Base unit: the food's property unit, else the instance's gram unit.
 	baseUnit := unitIDFromRef(f.PropertiesFoodUnit)
 	if baseUnit == 0 {
-		baseUnit, err = FindUnitIDByName(ctx, c, "gram")
+		baseUnit, err = findGramUnitID(ctx, c)
 		if err != nil {
 			return nil, fmt.Errorf("resolve base unit: %w", err)
 		}
