@@ -26,7 +26,16 @@ import (
 var version = "dev"
 
 func main() {
-	app := &cli.Command{
+	if err := newApp().Run(context.Background(), os.Args); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+// newApp assembles the root command. Split from main so tests can run the
+// full command tree against a mock server.
+func newApp() *cli.Command {
+	return &cli.Command{
 		Name:      "tandoor",
 		Usage:     "CLI for the Tandoor Recipes API",
 		Version:   version,
@@ -138,11 +147,6 @@ func main() {
 			GetFdcCommand(),
 			GetMCPCommand(),
 		},
-	}
-
-	if err := app.Run(context.Background(), os.Args); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
 	}
 }
 

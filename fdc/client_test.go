@@ -243,3 +243,117 @@ func TestDoUnmarshalsJSON(t *testing.T) {
 		t.Fatalf("expected dataType=Branded, got %s", food.DataType)
 	}
 }
+
+// --- Remaining client method tests ---
+
+func TestGetFoods(t *testing.T) {
+	client, _ := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Query()["fdcIds"]; len(got) != 2 {
+			t.Errorf("expected 2 fdcIds, got %v", got)
+		}
+		if r.URL.Query().Get("format") != "abridged" {
+			t.Errorf("expected format=abridged, got %q", r.URL.Query().Get("format"))
+		}
+		w.Write([]byte(`[{"fdcId": 1}, {"fdcId": 2}]`))
+	})
+	foods, err := client.GetFoods(context.Background(), []int{1, 2}, "abridged", nil)
+	if err != nil {
+		t.Fatalf("GetFoods: %v", err)
+	}
+	if len(foods) != 2 {
+		t.Fatalf("expected 2 foods, got %d", len(foods))
+	}
+}
+
+func TestPostFoods(t *testing.T) {
+	client, _ := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+		w.Write([]byte(`[{"fdcId": 1}]`))
+	})
+	foods, err := client.PostFoods(context.Background(), &FoodsCriteria{FDCIDs: []int{1}})
+	if err != nil {
+		t.Fatalf("PostFoods: %v", err)
+	}
+	if len(foods) != 1 {
+		t.Fatalf("expected 1 food, got %d", len(foods))
+	}
+	if _, err := client.PostFoods(context.Background(), nil); err == nil {
+		t.Fatal("expected error for nil criteria")
+	}
+}
+
+func TestListFoods(t *testing.T) {
+	ps, pn := 10, 2
+	client, _ := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if q.Get("pageSize") != "10" || q.Get("pageNumber") != "2" {
+			t.Errorf("unexpected pagination: %v", q)
+		}
+		if q.Get("dataType") == "" {
+			t.Error("expected dataType filter")
+		}
+		w.Write([]byte(`[{"fdcId": 1}]`))
+	})
+	foods, err := client.ListFoods(context.Background(), []DataType{DataTypeBranded}, &ps, &pn, "description", "asc")
+	if err != nil {
+		t.Fatalf("ListFoods: %v", err)
+	}
+	if len(foods) != 1 {
+		t.Fatalf("expected 1 food, got %d", len(foods))
+	}
+}
+
+func TestPostFoodsList(t *testing.T) {
+	client, _ := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`[{"fdcId": 1}]`))
+	})
+	foods, err := client.PostFoodsList(context.Background(), &FoodListCriteria{DataType: []DataType{DataTypeBranded}})
+	if err != nil {
+		t.Fatalf("PostFoodsList: %v", err)
+	}
+	if len(foods) != 1 {
+		t.Fatalf("expected 1 food, got %d", len(foods))
+	}
+	if _, err := client.PostFoodsList(context.Background(), nil); err == nil {
+		t.Fatal("expected error for nil criteria")
+	}
+}
+
+func TestSearchFoods(t *testing.T) {
+	ps, pn := 5, 1
+	client, _ := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if q.Get("query") != "pasta" || q.Get("brandOwner") != "Acme" {
+			t.Errorf("unexpected query: %v", q)
+		}
+		w.Write([]byte(`{"totalHits": 1, "currentPage": 1, "totalPages": 1, "foods": [{"fdcId": 1, "description": "Pasta"}]}`))
+	})
+	resp, err := client.SearchFoods(context.Background(), "pasta", []DataType{DataTypeBranded}, &ps, &pn, "description", "asc", "Acme")
+	if err != nil {
+		t.Fatalf("SearchFoods: %v", err)
+	}
+	if resp.TotalHits != 1 || len(resp.Foods) != 1 {
+		t.Fatalf("unexpected response: %+v", resp)
+	}
+}
+
+func TestPostFoodsSearch(t *testing.T) {
+	client, _ := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"totalHits": 1, "foods": [{"fdcId": 1, "description": "Pasta"}]}`))
+	})
+	resp, err := client.PostFoodsSearch(context.Background(), &FoodSearchCriteria{Query: "pasta"})
+	if err != nil {
+		t.Fatalf("PostFoodsSearch: %v", err)
+	}
+	if resp.TotalHits != 1 {
+		t.Fatalf("unexpected response: %+v", resp)
+	}
+	if _, err := client.PostFoodsSearch(context.Background(), nil); err == nil {
+		t.Fatal("expected error for nil criteria")
+	}
+	if _, err := client.PostFoodsSearch(context.Background(), &FoodSearchCriteria{}); err == nil {
+		t.Fatal("expected error for empty query")
+	}
+}

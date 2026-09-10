@@ -342,3 +342,12 @@ func TestFlexibleStringJSON(t *testing.T) {
 		t.Errorf("round-trip null: got %+v, want zero value", s4)
 	}
 }
+
+func TestFlexibleIntString(t *testing.T) {
+	if (FlexibleInt{Value: 42, HasValue: true}).String() != "42" {
+		t.Errorf("String(): got %q, want \"42\"", (FlexibleInt{Value: 42, HasValue: true}).String())
+	}
+	if (FlexibleInt{}).String() != "" {
+		t.Errorf("String(): got %q, want \"\"", (FlexibleInt{}).String())
+	}
+}

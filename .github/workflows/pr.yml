@@ -16,6 +16,8 @@ jobs:
           go-version-file: go.mod
       - name: Run Unit Tests
         run: go test -coverprofile coverage.txt -race ./...
+      - name: Coverage gate
+        run: COVERAGE_PROFILE=coverage.txt ./scripts/coverage-gate.sh
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
