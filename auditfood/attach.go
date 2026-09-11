@@ -29,8 +29,8 @@ type AttachOptions struct {
 	// Per100Amount sets the food's properties_food_amount (default 100).
 	Per100Amount float64
 	// Per100UnitID sets the food's properties_food_unit. When 0, the food's
-	// existing unit is kept if present, otherwise the unit named "gram" is
-	// resolved from the instance (error when missing).
+	// existing unit is kept if present, otherwise the instance's gram unit
+	// is resolved (base_unit "gram", then a unit named "g"/"gram").
 	Per100UnitID int
 }
 
@@ -177,8 +177,8 @@ func Attach(ctx context.Context, c *tandoor.Client, opts *AttachOptions, dryRun 
 
 // applyPer100 resolves the per-100 basis (keeping the food's existing unit
 // unless overridden) and sets the fields on f. It errors when no unit can be
-// resolved: the caller must supply Per100UnitID on instances without a unit
-// named "gram".
+// resolved: the caller must supply Per100UnitID on instances without a
+// recognizable gram unit.
 func applyPer100(ctx context.Context, c *tandoor.Client, f *food.Food, amount float64, unitID int) (*Per100Basis, error) {
 	if amount <= 0 {
 		amount = DefaultPer100Amount
@@ -186,15 +186,49 @@ func applyPer100(ctx context.Context, c *tandoor.Client, f *food.Food, amount fl
 	if unitID == 0 {
 		if id := unitIDFromRef(f.PropertiesFoodUnit); id != 0 {
 			unitID = id
-		} else if id, err := findUnitIDByName(ctx, c, "gram"); err == nil {
-			unitID = id
 		} else {
-			return nil, fmt.Errorf("cannot resolve per-100 unit: food has no properties_food_unit and no unit named %q found (%w) — set per_100_unit_id", "gram", err)
+			id, err := findGramUnitID(ctx, c)
+			if err != nil {
+				return nil, fmt.Errorf("cannot resolve per-100 unit: food has no properties_food_unit: %w — set per_100_unit_id", err)
+			}
+			unitID = id
 		}
 	}
 	f.PropertiesFoodAmount = &amount
 	f.PropertiesFoodUnit = unitID
 	return &Per100Basis{Amount: amount, UnitID: unitID}, nil
+}
+
+// findGramUnitID resolves the instance's gram unit. It prefers the unit
+// whose base_unit slug is "gram" (Tandoor's default data names that unit
+// "g", not "gram"), falling back to a unit named "g" or "gram".
+func findGramUnitID(ctx context.Context, c *tandoor.Client) (int, error) {
+	svc := c.Units()
+	page, err := svc.List(ctx, &unit.ListOptions{ListOptions: pagination.ListOptions{PageSize: 100}})
+	if err != nil {
+		return 0, fmt.Errorf("list units: %w", err)
+	}
+	all, err := pagination.CollectAll(ctx, page, func(pageNum int) (*pagination.Paginated[unit.Unit], error) {
+		return svc.List(ctx, &unit.ListOptions{ListOptions: pagination.ListOptions{Page: pageNum, PageSize: 100}})
+	})
+	if err != nil {
+		return 0, err
+	}
+	var byName int
+	for _, u := range all {
+		if strings.EqualFold(u.BaseUnit, "gram") {
+			return u.ID, nil
+		}
+		if byName == 0 {
+			if n := strings.ToLower(u.Name); n == "g" || n == "gram" {
+				byName = u.ID
+			}
+		}
+	}
+	if byName != 0 {
+		return byName, nil
+	}
+	return 0, fmt.Errorf("no gram unit found (no unit with base_unit %q or name %q/%q)", "gram", "g", "gram")
 }
 
 // unitIDFromRef extracts a unit ID from a properties_food_unit value (bare

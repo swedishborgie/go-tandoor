@@ -8,7 +8,26 @@ import (
 	"github.com/swedishborgie/go-tandoor/detector"
 	"github.com/swedishborgie/go-tandoor/pagination"
 	"github.com/swedishborgie/go-tandoor/property"
+	"github.com/swedishborgie/go-tandoor/unit"
 )
+
+// FetchAllUnits enumerates every unit on the server (auto-paginated).
+func FetchAllUnits(ctx context.Context, c *tandoor.Client) ([]unit.Unit, error) {
+	svc := c.Units()
+	page, err := svc.List(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("list units: %w", err)
+	}
+	return pagination.CollectAll(ctx, page, func(pageNum int) (*pagination.Paginated[unit.Unit], error) {
+		opts := &unit.ListOptions{ListOptions: pagination.ListOptions{Page: pageNum, PageSize: 100}}
+		return svc.List(ctx, opts)
+	})
+}
+
+// FindGramUnitID resolves the instance's gram unit (see findGramUnitID).
+func FindGramUnitID(ctx context.Context, c *tandoor.Client) (int, error) {
+	return findGramUnitID(ctx, c)
+}
 
 // FetchAllPropertyTypes enumerates every property type on the server
 // (auto-paginated).

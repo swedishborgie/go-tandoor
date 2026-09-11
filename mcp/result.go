@@ -62,11 +62,20 @@ func errResult(err error) *mcpgo.CallToolResult {
 func listAllResult[T any](ctx context.Context, req mcpgo.CallToolRequest,
 	first *pagination.Paginated[T], fetchNext func(page int) (*pagination.Paginated[T], error),
 ) (*mcpgo.CallToolResult, error) {
+	// Empty result sets are normalized to [] (not null) in both shapes:
+	// JSON-decoded empty arrays arrive as nil slices, which would otherwise
+	// re-marshal as null.
+	if first.Results == nil {
+		first.Results = []T{}
+	}
 	out := any(first)
 	if req.GetBool("all", false) {
 		items, err := pagination.CollectAll(ctx, first, fetchNext)
 		if err != nil {
 			return errResult(err), nil
+		}
+		if items == nil {
+			items = []T{}
 		}
 		out = items
 	}

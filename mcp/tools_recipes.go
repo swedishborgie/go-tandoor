@@ -117,7 +117,7 @@ func registerRecipeTools(d *deps) []toolDef {
 	dataParam := mcpgo.WithAny("data", mcpgo.Required(), mcpgo.Description("Recipe data as a JSON object (Tandoor recipe serializer fields: name, description, servings, servings_text, working_time, waiting_time, steps, keywords, image, source_url, private, archived, tags, nutrition, etc.)"))
 
 	recCreate := mcpgo.NewTool("recipe_create",
-		mcpgo.WithDescription("Create a recipe from a raw Tandoor recipe payload. Returns the created recipe."),
+		mcpgo.WithDescription("Create a recipe from a raw Tandoor recipe payload. A top-level ingredients array is merged into the first step (Tandoor ignores it there); each step is given an ingredients array when missing. Returns the created recipe."),
 		dataParam,
 	)
 	recCreateHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
@@ -125,6 +125,10 @@ func registerRecipeTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
+		if err := validateRecipeData(data, true); err != nil {
+			return errResult(err), nil
+		}
+		normalizeCreateData(data)
 		return runWrite(func() (any, error) {
 			var out any
 			if err := d.Tandoor.DoJSON(ctx, "POST", "api/recipe/", data, &out); err != nil {
@@ -146,6 +150,9 @@ func registerRecipeTools(d *deps) []toolDef {
 		}
 		data, err := recipeData(req)
 		if err != nil {
+			return errResult(err), nil
+		}
+		if err := validateRecipeData(data, false); err != nil {
 			return errResult(err), nil
 		}
 		path := fmt.Sprintf("api/recipe/%d/", id)
@@ -172,10 +179,125 @@ func registerRecipeTools(d *deps) []toolDef {
 		if err != nil {
 			return errResult(err), nil
 		}
+		if err := validateRecipeData(data, false); err != nil {
+			return errResult(err), nil
+		}
 		path := fmt.Sprintf("api/recipe/%d/", id)
 		return runWrite(func() (any, error) {
 			var out any
 			if err := d.Tandoor.DoJSON(ctx, "PATCH", path, data, &out); err != nil {
+				return nil, err
+			}
+			return out, nil
+		})
+	}
+
+	// addIng is the idempotent append path for recipe ingredients: it fetches
+	// the recipe, appends new entries to one step (skipping entries already
+	// present), and PUTs the full step list back — no full-replacement
+	// ceremony and no risk of dropping unsent ingredients.
+	addIng := mcpgo.NewTool("recipe_add_ingredients",
+		mcpgo.WithDescription("Append ingredients to a recipe step without touching anything else (idempotent: entries already in the step are skipped unless allow_duplicates). When the recipe has no steps, the first step is created (step_index 0). Returns the added/skipped counts and the updated recipe."),
+		mcpgo.WithInteger("recipe_id", mcpgo.Required(), mcpgo.Description("Recipe ID")),
+		mcpgo.WithInteger("step_index", mcpgo.Description("0-based index of the step to append to (default 0)")),
+		mcpgo.WithArray("ingredients", mcpgo.Required(), mcpgo.Description("Ingredients to append: objects with food_id (required) and optional unit_id, amount, note, no_amount, order")),
+		mcpgo.WithBoolean("allow_duplicates", mcpgo.Description("Append even when an identical entry already exists in the step (default false)")),
+	)
+	addIngHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+		id, err := req.RequireInt("recipe_id")
+		if err != nil {
+			return errResult(err), nil
+		}
+		ingredients, err := parseIngredientObjects(req.GetArguments()["ingredients"], true)
+		if err != nil {
+			return errResult(err), nil
+		}
+		stepIndex := req.GetInt("step_index", 0)
+		if stepIndex < 0 {
+			return errResult(fmt.Errorf("step_index must be >= 0")), nil
+		}
+		allowDup := req.GetBool("allow_duplicates", false)
+
+		var data map[string]any
+		if err := d.Tandoor.DoJSON(ctx, "GET", fmt.Sprintf("api/recipe/%d/", id), nil, &data); err != nil {
+			return errResult(err), nil
+		}
+		steps, _ := data["steps"].([]any)
+		if len(steps) == 0 {
+			if stepIndex != 0 {
+				return errResult(fmt.Errorf("recipe %d has no steps; only step_index 0 (which creates the first step) is valid", id)), nil
+			}
+			steps = []any{map[string]any{"name": "Instructions", "ingredients": []any{}}}
+		}
+		if stepIndex >= len(steps) {
+			return errResult(fmt.Errorf("step_index %d out of range (recipe %d has %d steps)", stepIndex, id, len(steps))), nil
+		}
+		step, ok := steps[stepIndex].(map[string]any)
+		if !ok {
+			return errResult(fmt.Errorf("step %d is not an object", stepIndex)), nil
+		}
+		existing, _ := step["ingredients"].([]any)
+		added, skipped := 0, 0
+		for _, ing := range ingredients {
+			key := ingredientKey(ing)
+			if !allowDup {
+				dup := false
+				for _, e := range existing {
+					if em, ok := e.(map[string]any); ok && ingredientKey(em) == key {
+						dup = true
+						break
+					}
+				}
+				if dup {
+					skipped++
+					continue
+				}
+			}
+			existing = append(existing, ing)
+			added++
+		}
+		step["ingredients"] = existing
+		data["steps"] = steps
+		path := fmt.Sprintf("api/recipe/%d/", id)
+		return runWrite(func() (any, error) {
+			var out any
+			if err := d.Tandoor.DoJSON(ctx, "PUT", path, data, &out); err != nil {
+				return nil, err
+			}
+			return map[string]any{"added": added, "skipped": skipped, "recipe": out}, nil
+		})
+	}
+
+	addStep := mcpgo.NewTool("recipe_add_step",
+		mcpgo.WithDescription("Append a step to a recipe, optionally with ingredients; other steps and fields are untouched. When the recipe has no steps, this creates the first one. Returns the updated recipe."),
+		mcpgo.WithInteger("recipe_id", mcpgo.Required(), mcpgo.Description("Recipe ID")),
+		mcpgo.WithString("name", mcpgo.Required(), mcpgo.Description("Step name")),
+		mcpgo.WithArray("ingredients", mcpgo.Description("Ingredients for the step: objects with food_id and optional unit_id, amount, note, no_amount, order")),
+	)
+	addStepHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+		id, err := req.RequireInt("recipe_id")
+		if err != nil {
+			return errResult(err), nil
+		}
+		name, err := req.RequireString("name")
+		if err != nil {
+			return errResult(err), nil
+		}
+		ingredients, err := parseIngredientObjects(req.GetArguments()["ingredients"], false)
+		if err != nil {
+			return errResult(err), nil
+		}
+		var data map[string]any
+		if err := d.Tandoor.DoJSON(ctx, "GET", fmt.Sprintf("api/recipe/%d/", id), nil, &data); err != nil {
+			return errResult(err), nil
+		}
+		steps, _ := data["steps"].([]any)
+		steps = append(steps, map[string]any{"name": name, "ingredients": ingredients})
+		data["steps"] = steps
+		path := fmt.Sprintf("api/recipe/%d/", id)
+		return runWrite(func() (any, error) {
+			var out any
+			if err := d.Tandoor.DoJSON(ctx, "PUT", path, data, &out); err != nil {
 				return nil, err
 			}
 			return out, nil
@@ -325,6 +447,8 @@ func registerRecipeTools(d *deps) []toolDef {
 		{tool: recPatch, handler: recPatchHandler, write: true},
 		{tool: recDelete, handler: recDeleteHandler, write: true},
 		{tool: recBatchUpdate, handler: recBatchUpdateHandler, write: true},
+		{tool: addIng, handler: addIngHandler, write: true},
+		{tool: addStep, handler: addStepHandler, write: true},
 		{tool: recAddToShopping, handler: recAddToShoppingHandler, write: true},
 		{tool: uploadImage, handler: uploadImageHandler, write: true},
 		{tool: aiProps, handler: aiPropsHandler, write: true},
@@ -339,4 +463,77 @@ func recipeData(req mcpgo.CallToolRequest) (map[string]any, error) {
 		return nil, fmt.Errorf("data must be a JSON object")
 	}
 	return data, nil
+}
+
+// validateRecipeData rejects payload keys Tandoor would silently drop, so a
+// dropped field fails loudly here instead of producing a recipe that looks
+// created but is missing data.
+func validateRecipeData(data map[string]any, create bool) error {
+	if _, ok := data["source"]; ok {
+		return fmt.Errorf(`data: "source" is silently ignored by Tandoor — use "source_url" instead`)
+	}
+	if _, has := data["ingredients"]; has && !create {
+		return fmt.Errorf(`data: top-level "ingredients" is ignored by Tandoor on update — nest them in steps[].ingredients, or use recipe_add_ingredients to append`)
+	}
+	return nil
+}
+
+// normalizeCreateData adapts a create payload to Tandoor's writable
+// serializer: a top-level ingredients list is merged into the first step
+// (Tandoor drops it there), and every step is given an ingredients array
+// (Tandoor 400s on steps without one).
+func normalizeCreateData(data map[string]any) {
+	steps, _ := data["steps"].([]any)
+	if top, ok := data["ingredients"].([]any); ok {
+		delete(data, "ingredients")
+		if len(steps) == 0 {
+			steps = []any{map[string]any{"name": "Instructions"}}
+		}
+		if step, ok := steps[0].(map[string]any); ok {
+			existing, _ := step["ingredients"].([]any)
+			step["ingredients"] = append(existing, top...)
+		}
+	}
+	for _, s := range steps {
+		if step, ok := s.(map[string]any); ok {
+			if _, has := step["ingredients"]; !has {
+				step["ingredients"] = []any{}
+			}
+		}
+	}
+	if len(steps) > 0 {
+		data["steps"] = steps
+	}
+}
+
+// parseIngredientObjects converts a raw ingredients argument into validated
+// ingredient objects (food_id required on each).
+func parseIngredientObjects(v any, required bool) ([]map[string]any, error) {
+	raw, _ := v.([]any)
+	if required && len(raw) == 0 {
+		return nil, fmt.Errorf("ingredients must be a non-empty array of objects")
+	}
+	out := make([]map[string]any, 0, len(raw))
+	for i, e := range raw {
+		m, ok := e.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("ingredients[%d] must be an object", i)
+		}
+		if _, has := m["food_id"]; !has {
+			return nil, fmt.Errorf("ingredients[%d] requires food_id", i)
+		}
+		out = append(out, m)
+	}
+	return out, nil
+}
+
+// ingredientKey is the idempotency key for recipe_add_ingredients dedup:
+// food + unit + amount + no_amount + note.
+func ingredientKey(m map[string]any) string {
+	food, _ := m["food_id"].(float64)
+	unit, _ := m["unit_id"].(float64)
+	amount, _ := m["amount"].(float64)
+	noAmount, _ := m["no_amount"].(bool)
+	note, _ := m["note"].(string)
+	return fmt.Sprintf("%g|%g|%v|%v|%s", food, unit, amount, noAmount, note)
 }

@@ -209,10 +209,12 @@ matches (the test fails when the README drifts).
 
 | Tool | Description |
 | --- | --- |
+| `recipe_add_ingredients` | Append ingredients to a recipe step without touching anything else (idempotent: entries already in the step are skipped unless allow_duplicates). When the recipe has no steps, the first step is created (step_index 0). Returns the added/skipped counts and the updated recipe. |
+| `recipe_add_step` | Append a step to a recipe, optionally with ingredients; other steps and fields are untouched. When the recipe has no steps, this creates the first one. Returns the updated recipe. |
 | `recipe_add_to_shopping` | Add a recipe's ingredients to a shopping list. With list_recipe, edits that existing entry instead; servings 0 with list_recipe deletes it. |
 | `recipe_ai_properties` | Trigger server-side AI to generate keywords, servings, and times for a recipe. Requires an AI provider configured on the instance. |
 | `recipe_batch_update` | Update multiple recipes at once: set keywords and/or working/waiting time. Returns the updated recipes. |
-| `recipe_create` | Create a recipe from a raw Tandoor recipe payload. Returns the created recipe. |
+| `recipe_create` | Create a recipe from a raw Tandoor recipe payload. A top-level ingredients array is merged into the first step (Tandoor ignores it there); each step is given an ingredients array when missing. Returns the created recipe. |
 | `recipe_delete` | Delete a recipe. |
 | `recipe_delete_external` | Remove the external file reference from a recipe (keeps the recipe). |
 | `recipe_get` | Get a single recipe by ID, including ingredients, steps, and keywords. |
@@ -250,16 +252,19 @@ matches (the test fails when the README drifts).
 | Tool | Description |
 | --- | --- |
 | `food_ai_properties` | Trigger server-side AI to generate properties for a food. Requires an AI provider configured on the instance. |
+| `food_auto_conversions` | Create common unit conversions for a food based on its property unit (gram → oz/lb/kg or millilitre → cup/tbsp/tsp), resolving unit IDs by name from the instance. Skips conversions that already exist; idempotent. |
 | `food_batch_update` | Batch update foods: add, remove, or replace substitutes for a set of foods at once. |
 | `food_create` | Create a food. Returns the created food. |
 | `food_delete` | Delete a food. Fails if the food is still in use. |
 | `food_ensure` | Ensure foods exist by exact name, creating missing ones (composite of food_list + food_create + FDC candidate lookup). With force_create=false it only reports which names exist, match, or would be created. |
-| `food_fdc_import` | Pull USDA FDC data into a food that already has an fdc_id set (populates properties and conversions server-side). |
+| `food_fdc_attach` | Attach properties to a food from USDA FDC data (client-side composite: fetches the food's FDC record, matches every property type that carries an fdc_id, and applies them in one food update). Idempotent — re-running updates existing properties. Requires FDC_API_KEY. Prefer this over food_fdc_import, which uses the Tandoor server's FDC endpoint and can 500. |
+| `food_fdc_import` | Pull USDA FDC data into a food that already has an fdc_id set, using the Tandoor server's own FDC endpoint (populates properties and conversions server-side). That endpoint can fail with transient 500s; prefer food_fdc_attach when FDC_API_KEY is configured. |
 | `food_get` | Get a single food by ID (includes category, unit, and properties). |
 | `food_list` | List foods. Use query for fuzzy name search, name_exact for a case-insensitive exact name, or names for a batch exact lookup returning a {name: food\|null} map. Filters: category_id, unit_id. Use all=true for the full set; jq projects fields to keep output small. |
 | `food_merge` | Merge one food into another: usages re-point to the target, then the source is deleted. |
 | `food_move` | Move a food under a new parent in the food tree. |
 | `food_patch` | Partially update a food. Only provided fields change. |
+| `food_prepare` | Bring a food to a macro-complete state in one call. Without fdc_id: returns ranked FDC candidates (SR Legacy > Foundation > Survey > Branded, then score) with the 4-macro validity gate applied — no write; re-run with the chosen fdc_id. With fdc_id: creates the food if missing (with plural_name/description), sets the FDC ID, attaches every FDC property, and creates standard unit conversions (idempotent). Requires FDC_API_KEY. |
 | `food_update` | Update a food (full replacement). Returns the updated food. |
 
 #### Keywords
@@ -298,6 +303,7 @@ matches (the test fails when the README drifts).
 | Tool | Description |
 | --- | --- |
 | `property_attach` | Attach a nutrient property to a food per 100 g (composite: resolves the food, sets the per-100 unit, creates or updates the property). Idempotent — re-running updates the existing property. |
+| `property_attach_many` | Attach or update several per-100-g properties on a food in a single PATCH (idempotent). Each entry needs amount plus property_type_id or property_type_name (resolved case-insensitively against the instance's property types — see instance_vocab or property_type_list). Duplicate types collapse, last entry wins. Use for FDC nutrients the API is missing (e.g. fiber, minerals, vitamins). |
 | `property_create` | Create a property value. Returns the created property. Property type IDs are instance-specific — use property_type_list first. |
 | `property_delete` | Delete a property value. |
 | `property_get` | Get a single property value by ID. |
@@ -502,13 +508,15 @@ matches (the test fails when the README drifts).
 | `food_audit_fix_preview` | Preview the food_audit_fix plan without writing: normalized name, alternatives, and the collision/merge decision. Read-only. |
 | `food_audit_inspect` | Deep-dive on one food: details, ingredient usage, naming issues, suggested canonical name, and FDC candidates when the food has no FDC ID. Read-only. |
 | `food_find_duplicates` | Scan all foods and group names that are likely duplicates (normalized Jaccard word similarity). Read-only. |
+| `instance_vocab` | Instance vocabulary in one call (read-only): property types and units as name-keyed maps with their instance-specific ids, plus the resolved gram unit id. Use this instead of property_type_list + unit_list to build the {name: id} maps for a run. |
+| `recipe_audit` | Audit a recipe in one call (read-only): per distinct food — id, name, fdc_id, property count, missing property types (vs the instance's full set), naming/FDC issues, unit conversions, units used by the recipe with no conversion, and other recipes using the food (shared-food safety). Also returns the recipe's food_properties with per-serving totals and flags: missing_value (no total), suspicious_zero (0 with no contributing food values — a missing property or unit conversion). |
 
 #### FoodData Central (FDC)
 
 | Tool | Description |
 | --- | --- |
 | `fdc_get_food` | Get a single FDC food with full nutrient detail by FDC ID (from fdc_search). |
-| `fdc_search` | Search the USDA FoodData Central database by name. Returns FDC IDs and abridged nutrient data; pair with fdc_get_food for full detail. |
+| `fdc_search` | Search the USDA FoodData Central database by name. Returns FDC IDs and abridged nutrient data; pair with fdc_get_food for full detail. NOTE: this is the raw FDC payload with camelCase field names (.foods[].fdcId, .description, .dataType, .foodNutrients[].number/amount) — unlike the snake_case (fdc_id, data_type) used by food_ensure/food_prepare. For candidate selection prefer food_prepare (no fdc_id) or food_ensure. |
 
 #### Server
 
