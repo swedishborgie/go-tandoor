@@ -72,8 +72,9 @@ func TestE2EFoodEnsureCycle(t *testing.T) {
 	entry := report["results"].(map[string]any)[name].(map[string]any)
 	require.Equal(t, "not_found", entry["status"])
 
-	// apply: creates the food
-	out := callTool(t, c, "food_ensure", map[string]any{"names": []any{name}})
+	// apply: creates the food (force_create must be explicit — the default
+	// is report-only, so a wrong name cannot create a near-duplicate)
+	out := callTool(t, c, "food_ensure", map[string]any{"names": []any{name}, "force_create": true})
 	report = out
 	summary = report["summary"].(map[string]any)
 	require.Equal(t, float64(1), summary["created"])
