@@ -27,8 +27,21 @@ type fakeTandoor struct {
 	units     []unit.Unit
 	propTypes []property.Type
 	convs     []unit.Conversion
+	recipes   map[int]map[string]any
+	// ingredients, when set, is returned by GET /api/ingredient/.
+	ingredients []map[string]any
 	// pageCap, when > 0, splits the food list into pages of this size.
 	pageCap int
+}
+
+// setRecipe stores a canned recipe for GET /api/recipe/{id}/.
+func (f *fakeTandoor) setRecipe(id int, recipe map[string]any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.recipes == nil {
+		f.recipes = make(map[int]map[string]any)
+	}
+	f.recipes[id] = recipe
 }
 
 func newFakeTandoor() *fakeTandoor {
@@ -153,6 +166,9 @@ func (f *fakeTandoor) handler() http.HandlerFunc {
 					if in.Name != "" {
 						f.foods[i].Name = in.Name
 					}
+					if in.FDCID != nil {
+						f.foods[i].FDCID = in.FDCID
+					}
 					if len(in.Properties) > 0 {
 						f.foods[i].Properties = in.Properties
 					}
@@ -221,8 +237,27 @@ func (f *fakeTandoor) handler() http.HandlerFunc {
 			}
 			writeJSON(w, pageResp(f.convs, 1, 200))
 
+		case strings.HasPrefix(p, "/api/recipe/") && r.Method == http.MethodGet:
+			id, _ := atoi(strings.TrimSuffix(strings.TrimPrefix(p, "/api/recipe/"), "/"))
+			f.mu.Lock()
+			rec, ok := f.recipes[id]
+			f.mu.Unlock()
+			if ok {
+				writeJSON(w, rec)
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+			writeJSON(w, map[string]any{"detail": "not found"})
+
 		case p == "/api/ingredient/" && r.Method == http.MethodGet:
-			writeJSON(w, map[string]any{"count": 0, "results": []map[string]any{}})
+			f.mu.Lock()
+			ings := f.ingredients
+			f.mu.Unlock()
+			if ings == nil {
+				writeJSON(w, map[string]any{"count": 0, "results": []map[string]any{}})
+				return
+			}
+			writeJSON(w, map[string]any{"count": len(ings), "results": ings})
 
 		case strings.HasPrefix(p, "/api/ingredient/"):
 			id, _ := atoi(strings.TrimSuffix(strings.TrimPrefix(p, "/api/ingredient/"), "/"))

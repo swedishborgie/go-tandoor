@@ -382,7 +382,7 @@ func registerFoodTools(d *deps) []toolDef {
 	ensure := mcpgo.NewTool("food_ensure",
 		mcpgo.WithDescription("Ensure foods exist by exact name, creating missing ones (composite of food_list + food_create + FDC candidate lookup). With force_create=false it only reports which names exist, match, or would be created."),
 		mcpgo.WithArray("names", mcpgo.WithStringItems(), mcpgo.Required(), mcpgo.Description("Food names to ensure")),
-		mcpgo.WithBoolean("force_create", mcpgo.Description("Create when no exact match exists (default true); false only reports")),
+		mcpgo.WithBoolean("force_create", mcpgo.Description("Create when no exact match exists (default false: report only, so a wrong name cannot create a near-duplicate; pass true to create)")),
 		mcpgo.WithNumber("threshold", mcpgo.Description("Jaccard similarity floor for near-match reporting (default 0.6)")),
 		mcpgo.WithInteger("fdc_limit", mcpgo.Description("FDC candidates per name when FDC is configured (default 5)")),
 		jqParam(),
@@ -397,7 +397,7 @@ func registerFoodTools(d *deps) []toolDef {
 			FDC:         d.FDC,
 			Threshold:   req.GetFloat("threshold", 0),
 			FDCLimit:    req.GetInt("fdc_limit", 0),
-			ForceCreate: req.GetBool("force_create", true),
+			ForceCreate: req.GetBool("force_create", false),
 		}, false)
 		if err != nil {
 			return errResult(err), nil
@@ -412,10 +412,59 @@ func registerFoodTools(d *deps) []toolDef {
 		return jsonResult(report), nil
 	}
 
+	// foodPrepare is the one-pass new-food composite: exact-match lookup, FDC
+	// candidate mode (ranked, macro-gated, no write) when no FDC ID is
+	// chosen yet, then create-or-reuse + FDC property attach + auto
+	// conversions in a single call once the FDC ID is known.
+	prepare := mcpgo.NewTool("food_prepare",
+		mcpgo.WithDescription("Bring a food to a macro-complete state in one call. Without fdc_id: returns ranked FDC candidates (SR Legacy > Foundation > Survey > Branded, then score) with the 4-macro validity gate applied — no write; re-run with the chosen fdc_id. With fdc_id: creates the food if missing (with plural_name/description), sets the FDC ID, attaches every FDC property, and creates standard unit conversions (idempotent). Requires FDC_API_KEY."),
+		mcpgo.WithString("name", mcpgo.Required(), mcpgo.Description("Canonical food name (Title Case)")),
+		mcpgo.WithInteger("fdc_id", mcpgo.Description("Chosen USDA FDC ID (omit to get ranked candidates first)")),
+		mcpgo.WithString("plural_name", mcpgo.Description("Plural name (used when creating)")),
+		mcpgo.WithString("description", mcpgo.Description("Food description, e.g. citing the FDC description and ID (used when creating)")),
+		mcpgo.WithBoolean("auto_conversions", mcpgo.Description("Create standard unit conversions after attaching (default true)")),
+		mcpgo.WithNumber("per_100_amount", mcpgo.Description("Basis amount for the food's properties_food_amount (default 100)")),
+		mcpgo.WithInteger("per_100_unit_id", mcpgo.Description("Basis unit ID for properties_food_unit (default: food's existing unit, else the instance's gram unit)")),
+		mcpgo.WithInteger("candidate_limit", mcpgo.Description("Max FDC candidates to return (default 8, max 30)")),
+		jqParam(),
+	)
+	prepareHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+		if d.FDC == nil {
+			return errResult(fdcNotConfigured()), nil
+		}
+		opts := &auditfood.PrepareOptions{
+			Name:           req.GetString("name", ""),
+			PluralName:     req.GetString("plural_name", ""),
+			Description:    req.GetString("description", ""),
+			Per100Amount:   req.GetFloat("per_100_amount", 0),
+			Per100UnitID:   req.GetInt("per_100_unit_id", 0),
+			CandidateLimit: req.GetInt("candidate_limit", 0),
+		}
+		if v, err := req.RequireInt("fdc_id"); err == nil && v != 0 {
+			opts.FDCID = &v
+		}
+		if v, ok := boolArg(req, "auto_conversions"); ok {
+			opts.AutoConversions = &v
+		}
+		result, err := auditfood.Prepare(ctx, d.Tandoor, d.FDC, opts)
+		if err != nil {
+			return errResult(err), nil
+		}
+		if jq := req.GetString("jq", ""); jq != "" {
+			s, err := applyJQ(ctx, jq, result)
+			if err != nil {
+				return errResult(err), nil
+			}
+			return mcpgo.NewToolResultText(s), nil
+		}
+		return jsonResult(result), nil
+	}
+
 	return []toolDef{
 		{tool: list, handler: listHandler},
 		{tool: get, handler: getHandler},
 		{tool: foodCreate, handler: foodCreateHandler, write: true},
+		{tool: prepare, handler: prepareHandler, write: true},
 		{tool: foodUpdate, handler: foodUpdateHandler, write: true},
 		{tool: foodPatch, handler: foodPatchHandler, write: true},
 		{tool: foodDelete, handler: foodDeleteHandler, write: true},

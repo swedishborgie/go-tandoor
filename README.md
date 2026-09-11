@@ -264,6 +264,7 @@ matches (the test fails when the README drifts).
 | `food_merge` | Merge one food into another: usages re-point to the target, then the source is deleted. |
 | `food_move` | Move a food under a new parent in the food tree. |
 | `food_patch` | Partially update a food. Only provided fields change. |
+| `food_prepare` | Bring a food to a macro-complete state in one call. Without fdc_id: returns ranked FDC candidates (SR Legacy > Foundation > Survey > Branded, then score) with the 4-macro validity gate applied — no write; re-run with the chosen fdc_id. With fdc_id: creates the food if missing (with plural_name/description), sets the FDC ID, attaches every FDC property, and creates standard unit conversions (idempotent). Requires FDC_API_KEY. |
 | `food_update` | Update a food (full replacement). Returns the updated food. |
 
 #### Keywords
@@ -302,6 +303,7 @@ matches (the test fails when the README drifts).
 | Tool | Description |
 | --- | --- |
 | `property_attach` | Attach a nutrient property to a food per 100 g (composite: resolves the food, sets the per-100 unit, creates or updates the property). Idempotent — re-running updates the existing property. |
+| `property_attach_many` | Attach or update several per-100-g properties on a food in a single PATCH (idempotent). Each entry needs amount plus property_type_id or property_type_name (resolved case-insensitively against the instance's property types — see instance_vocab or property_type_list). Duplicate types collapse, last entry wins. Use for FDC nutrients the API is missing (e.g. fiber, minerals, vitamins). |
 | `property_create` | Create a property value. Returns the created property. Property type IDs are instance-specific — use property_type_list first. |
 | `property_delete` | Delete a property value. |
 | `property_get` | Get a single property value by ID. |
@@ -506,13 +508,15 @@ matches (the test fails when the README drifts).
 | `food_audit_fix_preview` | Preview the food_audit_fix plan without writing: normalized name, alternatives, and the collision/merge decision. Read-only. |
 | `food_audit_inspect` | Deep-dive on one food: details, ingredient usage, naming issues, suggested canonical name, and FDC candidates when the food has no FDC ID. Read-only. |
 | `food_find_duplicates` | Scan all foods and group names that are likely duplicates (normalized Jaccard word similarity). Read-only. |
+| `instance_vocab` | Instance vocabulary in one call (read-only): property types and units as name-keyed maps with their instance-specific ids, plus the resolved gram unit id. Use this instead of property_type_list + unit_list to build the {name: id} maps for a run. |
+| `recipe_audit` | Audit a recipe in one call (read-only): per distinct food — id, name, fdc_id, property count, missing property types (vs the instance's full set), naming/FDC issues, unit conversions, units used by the recipe with no conversion, and other recipes using the food (shared-food safety). Also returns the recipe's food_properties with per-serving totals and flags: missing_value (no total), suspicious_zero (0 with no contributing food values — a missing property or unit conversion). |
 
 #### FoodData Central (FDC)
 
 | Tool | Description |
 | --- | --- |
 | `fdc_get_food` | Get a single FDC food with full nutrient detail by FDC ID (from fdc_search). |
-| `fdc_search` | Search the USDA FoodData Central database by name. Returns FDC IDs and abridged nutrient data; pair with fdc_get_food for full detail. |
+| `fdc_search` | Search the USDA FoodData Central database by name. Returns FDC IDs and abridged nutrient data; pair with fdc_get_food for full detail. NOTE: this is the raw FDC payload with camelCase field names (.foods[].fdcId, .description, .dataType, .foodNutrients[].number/amount) — unlike the snake_case (fdc_id, data_type) used by food_ensure/food_prepare. For candidate selection prefer food_prepare (no fdc_id) or food_ensure. |
 
 #### Server
 

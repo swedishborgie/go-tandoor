@@ -14,7 +14,7 @@ import (
 // FDC_API_KEY at server construction; without it they return a clear error.
 func registerFdcTools(d *deps) []toolDef {
 	search := mcpgo.NewTool("fdc_search",
-		mcpgo.WithDescription("Search the USDA FoodData Central database by name. Returns FDC IDs and abridged nutrient data; pair with fdc_get_food for full detail."),
+		mcpgo.WithDescription("Search the USDA FoodData Central database by name. Returns FDC IDs and abridged nutrient data; pair with fdc_get_food for full detail. NOTE: this is the raw FDC payload with camelCase field names (.foods[].fdcId, .description, .dataType, .foodNutrients[].number/amount) — unlike the snake_case (fdc_id, data_type) used by food_ensure/food_prepare. For candidate selection prefer food_prepare (no fdc_id) or food_ensure."),
 		mcpgo.WithString("query", mcpgo.Required(), mcpgo.Description("Search query, e.g. a food name")),
 		mcpgo.WithInteger("limit", mcpgo.Description("Maximum results (default 10, FDC max 30)")),
 		mcpgo.WithArray("types", mcpgo.WithStringItems(), mcpgo.Description("Optional data type filter: srlegacy, foundation, survey, branded")),

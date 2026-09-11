@@ -310,6 +310,68 @@ func registerPropertyTools(d *deps) []toolDef {
 		return jsonResult(result), nil
 	}
 
+	// attachMany is the batch counterpart of attach: several per-100-g
+	// properties in one food PATCH, resolved by type ID or name.
+	attachMany := mcpgo.NewTool("property_attach_many",
+		mcpgo.WithDescription("Attach or update several per-100-g properties on a food in a single PATCH (idempotent). Each entry needs amount plus property_type_id or property_type_name (resolved case-insensitively against the instance's property types — see instance_vocab or property_type_list). Duplicate types collapse, last entry wins. Use for FDC nutrients the API is missing (e.g. fiber, minerals, vitamins)."),
+		mcpgo.WithInteger("food_id", mcpgo.Required(), mcpgo.Description("Target food")),
+		mcpgo.WithArray("properties", mcpgo.Required(),
+			mcpgo.Description(`Array of {property_type_id | property_type_name, amount}`),
+			func(schema map[string]any) {
+				schema["items"] = map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"property_type_id":   map[string]any{"type": "integer"},
+						"property_type_name": map[string]any{"type": "string"},
+						"amount":             map[string]any{"type": "number"},
+					},
+					"required": []string{"amount"},
+				}
+			},
+		),
+		mcpgo.WithNumber("per_100_amount", mcpgo.Description("Basis amount for the food's properties_food_amount (default 100)")),
+		mcpgo.WithInteger("per_100_unit_id", mcpgo.Description("Basis unit ID for properties_food_unit (default: food's existing unit, else the instance's gram unit)")),
+		jqParam(),
+	)
+	attachManyHandler := func(ctx context.Context, req mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+		list, _ := req.GetArguments()["properties"].([]any)
+		props := make([]auditfood.ManyProperty, 0, len(list))
+		for i, e := range list {
+			m, ok := e.(map[string]any)
+			if !ok {
+				return errResult(fmt.Errorf("properties[%d] must be an object", i)), nil
+			}
+			p := auditfood.ManyProperty{}
+			if v, ok := m["property_type_id"].(float64); ok {
+				p.PropertyTypeID = int(v)
+			}
+			p.PropertyTypeName, _ = m["property_type_name"].(string)
+			v, ok := m["amount"].(float64)
+			if !ok {
+				return errResult(fmt.Errorf("properties[%d] requires a numeric amount", i)), nil
+			}
+			p.Amount = v
+			props = append(props, p)
+		}
+		result, err := auditfood.AttachMany(ctx, d.Tandoor, &auditfood.AttachManyOptions{
+			FoodID:       req.GetInt("food_id", 0),
+			Properties:   props,
+			Per100Amount: req.GetFloat("per_100_amount", 0),
+			Per100UnitID: req.GetInt("per_100_unit_id", 0),
+		})
+		if err != nil {
+			return errResult(err), nil
+		}
+		if jq := req.GetString("jq", ""); jq != "" {
+			s, err := applyJQ(ctx, jq, result)
+			if err != nil {
+				return errResult(err), nil
+			}
+			return mcpgo.NewToolResultText(s), nil
+		}
+		return jsonResult(result), nil
+	}
+
 	return []toolDef{
 		{tool: propList, handler: propListHandler},
 		{tool: propGet, handler: propGetHandler},
@@ -324,5 +386,6 @@ func registerPropertyTools(d *deps) []toolDef {
 		{tool: typePatch, handler: typePatchHandler, write: true},
 		{tool: typeDelete, handler: typeDeleteHandler, write: true},
 		{tool: attach, handler: attachHandler, write: true},
+		{tool: attachMany, handler: attachManyHandler, write: true},
 	}
 }

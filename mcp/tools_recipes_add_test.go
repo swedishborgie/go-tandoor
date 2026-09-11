@@ -104,7 +104,7 @@ func TestRecipeAddIngredients_AppendsAndSkipsDuplicates(t *testing.T) {
 	require.Len(t, steps, 2)
 	ings, _ := steps[0]["ingredients"].([]any)
 	require.Len(t, ings, 2, "new ingredient appended to step 0")
-	require.Len(t, steps[1]["ingredients"].([]any), 0, "step 1 untouched")
+	require.Empty(t, steps[1]["ingredients"], "step 1 untouched")
 
 	// Idempotent re-run: identical entry is skipped, nothing grows.
 	res = callTool(t, c, "recipe_add_ingredients", map[string]any{

@@ -114,8 +114,11 @@ func TestAllToolsWithFullArgs(t *testing.T) {
 			// which creates the first step.
 			delete(args, "step_index")
 		}
+		if tool.Name == "property_attach_many" {
+			args["properties"] = []any{map[string]any{"property_type_name": "Calories", "amount": 100}}
+		}
 		res := callTool(t, c, tool.Name, args)
-		if strings.HasPrefix(tool.Name, "fdc_") || tool.Name == "food_fdc_attach" {
+		if strings.HasPrefix(tool.Name, "fdc_") || tool.Name == "food_fdc_attach" || tool.Name == "food_prepare" {
 			// No FDC client in this server: configuration error is correct.
 			require.Truef(t, res.IsError, "tool %s without FDC should error", tool.Name)
 			continue
@@ -206,9 +209,23 @@ func TestFdcToolsConfigured(t *testing.T) {
 	res = callTool(t, c, "food_auto_conversions", map[string]any{"food_id": 1})
 	require.False(t, res.IsError, resultText(t, res))
 
+	// food_prepare without an fdc_id returns ranked candidates (no write).
+	res = callTool(t, c, "food_prepare", map[string]any{"name": "Test Food"})
+	require.False(t, res.IsError, resultText(t, res))
+	require.Contains(t, resultText(t, res), "\"candidates\"")
+
+	// food_prepare with the canned fdc_id creates the food and runs the
+	// (empty) attach + conversion passes.
+	res = callTool(t, c, "food_prepare", map[string]any{"name": "Test Food", "fdc_id": 123})
+	require.False(t, res.IsError, resultText(t, res))
+	require.Contains(t, resultText(t, res), "\"prepared\"")
+
 	// Without an FDC client the attach tool is a configuration error.
 	plain := newTestClient(t)
 	res = callTool(t, plain, "food_fdc_attach", map[string]any{"food_id": 1})
+	require.True(t, res.IsError)
+	require.Contains(t, resultText(t, res), "FDC_API_KEY")
+	res = callTool(t, plain, "food_prepare", map[string]any{"name": "Test Food"})
 	require.True(t, res.IsError)
 	require.Contains(t, resultText(t, res), "FDC_API_KEY")
 }
@@ -244,4 +261,45 @@ func TestWithDefaultPageSize(t *testing.T) {
 	c := newTestClient(t, WithDefaultPageSize(7))
 	res := callTool(t, c, "recipe_list", nil)
 	require.False(t, res.IsError)
+}
+
+// TestFoodListNamesAndExact exercises the batch-names and name_exact paths
+// of food_list.
+func TestFoodListNamesAndExact(t *testing.T) {
+	c := newTestClient(t)
+
+	res := callTool(t, c, "food_list", map[string]any{"names": []any{"Pancakes", "Bogus"}})
+	require.False(t, res.IsError, resultText(t, res))
+	require.Contains(t, resultText(t, res), "Pancakes")
+
+	res = callTool(t, c, "food_list", map[string]any{"name_exact": "Pancakes"})
+	require.False(t, res.IsError, resultText(t, res))
+
+	res = callTool(t, c, "food_list", map[string]any{"name_exact": "Pancakes", "jq": "."})
+	require.False(t, res.IsError, resultText(t, res))
+}
+
+// TestNewCompositeErrorBranches covers validation errors in the new
+// composite tools.
+func TestNewCompositeErrorBranches(t *testing.T) {
+	c := newTestClient(t)
+
+	// recipe_audit requires recipe_id.
+	res := callTool(t, c, "recipe_audit", nil)
+	require.True(t, res.IsError)
+
+	// property_attach_many rejects a non-object entry.
+	res = callTool(t, c, "property_attach_many", map[string]any{"food_id": 1, "properties": []any{"nope"}})
+	require.True(t, res.IsError)
+	require.Contains(t, resultText(t, res), "must be an object")
+
+	// property_attach_many rejects an entry without a numeric amount.
+	res = callTool(t, c, "property_attach_many", map[string]any{"food_id": 1, "properties": []any{map[string]any{"property_type_name": "Calories"}}})
+	require.True(t, res.IsError)
+	require.Contains(t, resultText(t, res), "numeric amount")
+
+	// property_attach_many rejects an unknown property type name.
+	res = callTool(t, c, "property_attach_many", map[string]any{"food_id": 1, "properties": []any{map[string]any{"property_type_name": "Vitamin Z", "amount": 1}}})
+	require.True(t, res.IsError)
+	require.Contains(t, resultText(t, res), "no property type named")
 }

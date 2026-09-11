@@ -139,7 +139,10 @@ func serverInstructions(d *deps, toolCount int) string {
 	} else {
 		b.WriteString("fdc_* tools are available. ")
 	}
-	b.WriteString("Property type and unit IDs are instance-specific — enumerate them (property_type_list, unit_list) before using them.")
+	b.WriteString("Property type and unit IDs are instance-specific — fetch them once with instance_vocab (one call, name-keyed maps) before using them.")
+	if !d.Cfg.ReadOnly && d.FDC != nil {
+		b.WriteString(" New-food workflow: food_prepare (no fdc_id) for ranked candidates, then food_prepare with the chosen fdc_id; recipe_audit audits an existing recipe end-to-end.")
+	}
 	return b.String()
 }
 
